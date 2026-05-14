@@ -1,33 +1,19 @@
-const int LED_VERDE = 8;
-const int LED_AMARELO = 9;
-const int LED_VERMELHO = 10;
-
-void apagarTodos() {
-  digitalWrite(LED_VERDE, LOW);
-  digitalWrite(LED_AMARELO, LOW);
-  digitalWrite(LED_VERMELHO, LOW);
-}
+#define NEOPIXEL_PIN LED_BUILTIN
 
 void setup() {
-  pinMode(LED_VERDE, OUTPUT);
-  pinMode(LED_AMARELO, OUTPUT);
-  pinMode(LED_VERMELHO, OUTPUT);
+  pinMode(NEOPIXEL_PIN, OUTPUT);
 }
 
 void loop() {
-
   // VERDE por 3 segundos
-  apagarTodos();
-  digitalWrite(LED_VERDE, HIGH);
+  neopixelWrite(NEOPIXEL_PIN, 0, 255, 0);
   delay(3000);
 
-  // VERMELHO por 4 segundos
-  apagarTodos();
-  digitalWrite(LED_VERMELHO, HIGH);
-  delay(4000);
-
   // AMARELO por 1 segundo
-  apagarTodos();
-  digitalWrite(LED_AMARELO, HIGH);
+  neopixelWrite(NEOPIXEL_PIN, 255, 255, 0);
   delay(1000);
+
+  // VERMELHO por 4 segundos
+  neopixelWrite(NEOPIXEL_PIN, 255, 0, 0);
+  delay(4000);
 }
