@@ -61,13 +61,27 @@ int main() {
     std::cout << "--- CASOS DE TESTE DA ULA DE 4 BITS ---" << std::endl;
     
     // Teste 1: 3 + 2 = 5 (OK) [cite: 232]
+    std::cout << "Teste 1 - Resultado esperado: 3 + 2 = 5, Overflow: NAO" << std::endl;
     rodarTeste("0011", "0010", "add"); 
     
-    // Teste 2: 7 + 2 = 9 (Deve acusar Overflow -> Invasão de bit de sinal gerando -7) [cite: 219, 232]
+    // Teste 2: 7 + 2 = 9 (Deve acusar Overflow -> Invasão de bit de sinal gerando -7)
+    std::cout << "Teste 2 - Resultado esperado: 7 + 2 = 9, Overflow: SIM" << std::endl;
     rodarTeste("0111", "0010", "add"); 
+
+    std::cout << "Teste 3 - Resultado esperado: (-5) + (-4) = -9, Overflow: SIM" << std::endl;
+    rodarTeste("1011", "1100", "add"); 
     
-    // Teste 3: -8 - 1 = -9 (Deve acusar Overflow -> Invasão de bit de sinal gerando +7) [cite: 232]
-    rodarTeste("1000", "0001", "sub"); 
+    std::cout << "Teste 4 - Resultado esperado: (-8) - (-5) = -3, Overflow: NAO" << std::endl;
+    rodarTeste("1000", "1011", "sub"); 
+
+    std::cout << "Teste 5 - Resultado esperado: (-8) - (1) = -9, Overflow: SIM" << std::endl;
+    rodarTeste("1000", "1111", "sub"); 
+
+    std::cout << "Teste 6 - Resultado esperado: (6) - (-3) = 9, Overflow: SIM" << std::endl;
+    rodarTeste("0110", "1011", "sub");
+
+    std::cout << "Teste 7 - Resultado esperado: (-2) - (-8) = 6, Overflow: NAO" << std::endl;
+    rodarTeste("1110", "1000", "sub"); 
 
     return 0;
 }
