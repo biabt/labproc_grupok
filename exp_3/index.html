@@ -22,7 +22,66 @@
             width: 320px;
             text-align: center;
         }
-        h2 { color: #333; margin-bottom: 20px; }
+        h2 { color: #333; margin-bottom: 15px; }
+        
+        /* Estilização da Chave Seletora de Modo */
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #eee;
+            padding: 8px;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .mode-label {
+            margin: 0 10px;
+            color: #666;
+            transition: color 0.3s;
+        }
+        .mode-label.active {
+            color: #2b7a78;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+        }
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2b7a78;
+        }
+        input:checked + .slider:before {
+            transform: translateX(18px);
+        }
+
+        /* Estilos do Formulário */
         .form-group {
             margin-bottom: 15px;
             text-align: left;
@@ -56,6 +115,8 @@
         .btn-soma { background-color: #2b7a78; }
         .btn-sub { background-color: #3aafa9; }
         button:hover { opacity: 0.9; }
+        
+        /* Containers de Mensagem */
         #resultado-container {
             margin-top: 20px;
             padding: 10px;
@@ -69,16 +130,25 @@
 <body>
 
 <div class="container">
-    <h2>Dashboard da Calculadora</h2>
+    <h2>Dashboard</h2>
+
+    <div class="mode-selector">
+        <span id="label-esp" class="mode-label active">ESP32</span>
+        <label class="switch">
+            <input type="checkbox" id="mode-toggle" onchange="atualizarInterfaceModo()">
+            <span class="slider"></span>
+        </label>
+        <span id="label-teste" class="mode-label">TEST</span>
+    </div>
     
     <div class="form-group">
         <label for="opA">Operando A (4 bits):</label>
-        <input type="text" id="opA" placeholder="Ex: 0110" maxlength="4" value="" oninput="aplicarMascaraBinaria(this)">
+        <input type="text" id="opA" placeholder="Ex: 0110" maxlength="4" value="0110" oninput="aplicarMascaraBinaria(this)">
     </div>
     
     <div class="form-group">
         <label for="opB">Operando B (4 bits):</label>
-        <input type="text" id="opB" placeholder="Ex: 0010" maxlength="4" value="" oninput="aplicarMascaraBinaria(this)">
+        <input type="text" id="opB" placeholder="Ex: 0010" maxlength="4" value="0010" oninput="aplicarMascaraBinaria(this)">
     </div>
     
     <div class="buttons">
@@ -92,48 +162,103 @@
 <script>
     const ESP32_IP = "http://192.168.4.1";
 
-    // --- FUNÇÃO DA MÁSCARA EM TEMPO REAL ---
     function aplicarMascaraBinaria(input) {
-        // Substitui instantaneamente qualquer caractere que NÃO seja 0 ou 1 por uma string vazia
         input.value = input.value.replace(/[^01]/g, '');
     }
 
-    function enviarRequisicao(operacao) {
-        const a = document.getElementById('opA').value.trim();
-        const b = document.getElementById('opB').value.trim();
-        const resContainer = document.getElementById('resultado-container');
+    // Altera o destaque visual do texto do modo selecionado
+    function atualizarInterfaceModo() {
+        const isModoTeste = document.getElementById('mode-toggle').checked;
+        document.getElementById('label-esp').className = isModoTeste ? "mode-label" : "mode-label active";
+        document.getElementById('label-teste').className = isModoTeste ? "mode-label active" : "mode-label";
+        
+        // Limpa resultados anteriores ao trocar de modo para não confundir
+        document.getElementById('resultado-container').style.display = "none";
+    }
 
-        // Validação secundária apenas para checar se o usuário não deixou o campo incompleto (menos de 4 caracteres)
-        if (a.length !== 4 || b.length !== 4) {
-            resContainer.className = "alert-overflow";
-            resContainer.innerHTML = "Erro: Ambos os operandos precisam ter exatamente 4 bits.";
-            resContainer.style.display = "block";
-            return;
+    function enviarRequisicao(operacao) {
+    const a = document.getElementById('opA').value.trim();
+    const b = document.getElementById('opB').value.trim();
+    const resContainer = document.getElementById('resultado-container');
+    const isModoTeste = document.getElementById('mode-toggle').checked;
+
+    if (a.length !== 4 || b.length !== 4) {
+        resContainer.className = "alert-overflow";
+        resContainer.innerHTML = "Erro: Ambos os operandos precisam ter exatamente 4 bits.";
+        resContainer.style.display = "block";
+        return;
+    }
+
+    if (isModoTeste) {
+        // Função para converter binário de 4 bits para inteiro com sinal (-8 a +7)
+        const converterParaInteiro4Bits = (bin) => {
+            let n = parseInt(bin, 2);
+            return (n & 0x08) ? (n - 16) : n; 
+        };
+
+        const valA = converterParaInteiro4Bits(a);
+        const valB = converterParaInteiro4Bits(b);
+        
+        let contaPura = (operacao === 'add') ? (valA + valB) : (valA - valB);
+        
+        let result4Bits = contaPura & 0x0F;
+        if (result4Bits & 0x08) {
+            result4Bits -= 16;
+        }
+        console.log(`Valor A: ${valA}, Valor B: ${valB}`);
+        console.log(`Conta Pura: ${contaPura}, Resultado 4 bits (com sinal): ${result4Bits}`);
+        // 3. Detecção de Overflow Baseada na Inversão de Sinal
+        let overflow = false;
+        if (operacao === 'add') {
+            if ((valA > 0 && valB > 0 && result4Bits <= 0) || 
+                (valA < 0 && valB < 0 && result4Bits >= 0)) {
+                overflow = true;
+            }
+        } else {
+            if ((valA >= 0 && valB < 0 && result4Bits < 0) || 
+                (valA < 0 && valB > 0 && result4Bits > 0)) {
+                overflow = true;
+            }
         }
 
-        const url = `${ESP32_IP}/calc?a=${a}&b=${b}&op=${operacao}`;
+        let resultadoBinario = (contaPura & 0x0F).toString(2).padStart(4, '0');
 
-        fetch(url)
-            .then(response => {
-                if (!response.ok) throw new Error("Erro na resposta do servidor");
-                return response.json();
-            })
-            .then(data => {
-                resContainer.style.display = "block";
-                if (data.overflow) {
-                    resContainer.className = "alert-overflow";
-                    resContainer.innerHTML = `Overflow! <br> Resultado Bruto: ${data.resultado_bin}`;
-                } else {
-                    resContainer.className = "alert-success";
-                    resContainer.innerHTML = `Sucesso! <br> Resultado Mascarado: ${data.resultado_bin}`;
-                }
-            })
-            .catch(error => {
+        resContainer.style.display = "block";
+        if (overflow) {
+            resContainer.className = "alert-overflow";
+            resContainer.innerHTML = `[TESTE] Overflow! <br> Resultado Bruto: ${resultadoBinario}`;
+        } else {
+            resContainer.className = "alert-success";
+            resContainer.innerHTML = `[TESTE] Sucesso! <br> Resultado Mascarado: ${resultadoBinario}`;
+        }
+        return; 
+    }
+    
+    //MODO HTTP
+
+    const url = `${ESP32_IP}/calc?a=${a}&b=${b}&op=${operacao}`;
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error("Erro na resposta do servidor");
+            return response.json();
+        })
+        .then(data => {
+            resContainer.style.display = "block";
+            if (data.overflow) {
                 resContainer.className = "alert-overflow";
-                resContainer.innerHTML = "Erro de conexão com o ESP32.";
-                resContainer.style.display = "block";
-                console.error(error);
-            });
+                resContainer.innerHTML = `Overflow! <br> Resultado Bruto: ${data.resultado_bin}`;
+            } else {
+                resContainer.className = "alert-success";
+                resContainer.innerHTML = `Sucesso! <br> Resultado Mascarado: ${data.resultado_bin}`;
+            }
+        })
+        .catch(error => {
+            resContainer.className = "alert-overflow";
+            resContainer.innerHTML = "Erro de conexão com o ESP32.";
+            resContainer.style.display = "block";
+            console.error(error);
+        });
     }
 </script>
 
