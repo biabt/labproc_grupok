@@ -73,12 +73,12 @@
     
     <div class="form-group">
         <label for="opA">Operando A (4 bits):</label>
-        <input type="text" id="opA" placeholder="Ex: 0110" maxlength="4" value="0110">
+        <input type="text" id="opA" placeholder="Ex: 0110" maxlength="4" value="" oninput="aplicarMascaraBinaria(this)">
     </div>
     
     <div class="form-group">
         <label for="opB">Operando B (4 bits):</label>
-        <input type="text" id="opB" placeholder="Ex: 0010" maxlength="4" value="0010">
+        <input type="text" id="opB" placeholder="Ex: 0010" maxlength="4" value="" oninput="aplicarMascaraBinaria(this)">
     </div>
     
     <div class="buttons">
@@ -90,11 +90,12 @@
 </div>
 
 <script>
-    const ESP32_IP = "http://192.168.4.1"; // IP padrão do modo Access Point do ESP32
+    const ESP32_IP = "http://192.168.4.1";
 
-    function validarInput(str) {
-        // Garante que possui exatamente 4 caracteres e apenas '0' ou '1'
-        return /^[01]{4}$/.test(str);
+    // --- FUNÇÃO DA MÁSCARA EM TEMPO REAL ---
+    function aplicarMascaraBinaria(input) {
+        // Substitui instantaneamente qualquer caractere que NÃO seja 0 ou 1 por uma string vazia
+        input.value = input.value.replace(/[^01]/g, '');
     }
 
     function enviarRequisicao(operacao) {
@@ -102,27 +103,23 @@
         const b = document.getElementById('opB').value.trim();
         const resContainer = document.getElementById('resultado-container');
 
-        if (!validarInput(a) || !validarInput(b)) {
+        // Validação secundária apenas para checar se o usuário não deixou o campo incompleto (menos de 4 caracteres)
+        if (a.length !== 4 || b.length !== 4) {
             resContainer.className = "alert-overflow";
-            resContainer.innerHTML = "Erro: Os operandos devem ter exatamente 4 bits binários (0 ou 1).";
+            resContainer.innerHTML = "Erro: Ambos os operandos precisam ter exatamente 4 bits.";
             resContainer.style.display = "block";
             return;
         }
 
-        // Monta a URL dinâmica: http://192.168.4.1/calc?a=XXXX&b=YYYY&op=op
         const url = `${ESP32_IP}/calc?a=${a}&b=${b}&op=${operacao}`;
 
         fetch(url)
             .then(response => {
-                if (!response.ok) {
-                    throw new Error("Erro na resposta do servidor");
-                }
+                if (!response.ok) throw new Error("Erro na resposta do servidor");
                 return response.json();
             })
             .then(data => {
                 resContainer.style.display = "block";
-                
-                // Trata a detecção de overflow injetando a classe de alerta se necessário
                 if (data.overflow) {
                     resContainer.className = "alert-overflow";
                     resContainer.innerHTML = `Overflow! <br> Resultado Bruto: ${data.resultado_bin}`;
