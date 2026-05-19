@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard da Calculadora</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 320px;
+            text-align: center;
+        }
+        h2 { color: #333; margin-bottom: 20px; }
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        label { font-weight: bold; display: block; margin-bottom: 5px; color: #555; }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 16px;
+            text-align: center;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        button {
+            width: 48%;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            font-size: 14px;
+        }
+        .btn-soma { background-color: #2b7a78; }
+        .btn-sub { background-color: #3aafa9; }
+        button:hover { opacity: 0.9; }
+        #resultado-container {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-overflow { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Dashboard da Calculadora</h2>
+    
+    <div class="form-group">
+        <label for="opA">Operando A (4 bits):</label>
+        <input type="text" id="opA" placeholder="Ex: 0110" maxlength="4" value="0110">
+    </div>
+    
+    <div class="form-group">
+        <label for="opB">Operando B (4 bits):</label>
+        <input type="text" id="opB" placeholder="Ex: 0010" maxlength="4" value="0010">
+    </div>
+    
+    <div class="buttons">
+        <button class="btn-soma" onclick="enviarRequisicao('add')">SOMA</button>
+        <button class="btn-sub" onclick="enviarRequisicao('sub')">SUB</button>
+    </div>
+
+    <div id="resultado-container"></div>
+</div>
+
+<script>
+    const ESP32_IP = "http://192.168.4.1"; // IP padrão do modo Access Point do ESP32
+
+    function validarInput(str) {
+        // Garante que possui exatamente 4 caracteres e apenas '0' ou '1'
+        return /^[01]{4}$/.test(str);
+    }
+
+    function enviarRequisicao(operacao) {
+        const a = document.getElementById('opA').value.trim();
+        const b = document.getElementById('opB').value.trim();
+        const resContainer = document.getElementById('resultado-container');
+
+        if (!validarInput(a) || !validarInput(b)) {
+            resContainer.className = "alert-overflow";
+            resContainer.innerHTML = "Erro: Os operandos devem ter exatamente 4 bits binários (0 ou 1).";
+            resContainer.style.display = "block";
+            return;
+        }
+
+        // Monta a URL dinâmica: http://192.168.4.1/calc?a=XXXX&b=YYYY&op=op
+        const url = `${ESP32_IP}/calc?a=${a}&b=${b}&op=${operacao}`;
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Erro na resposta do servidor");
+                }
+                return response.json();
+            })
+            .then(data => {
+                resContainer.style.display = "block";
+                
+                // Trata a detecção de overflow injetando a classe de alerta se necessário
+                if (data.overflow) {
+                    resContainer.className = "alert-overflow";
+                    resContainer.innerHTML = `Overflow! <br> Resultado Bruto: ${data.resultado_bin}`;
+                } else {
+                    resContainer.className = "alert-success";
+                    resContainer.innerHTML = `Sucesso! <br> Resultado Mascarado: ${data.resultado_bin}`;
+                }
+            })
+            .catch(error => {
+                resContainer.className = "alert-overflow";
+                resContainer.innerHTML = "Erro de conexão com o ESP32.";
+                resContainer.style.display = "block";
+                console.error(error);
+            });
+    }
+</script>
+
+</body>
+</html>
