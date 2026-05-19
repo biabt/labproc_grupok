@@ -68,15 +68,19 @@ void tratarCalculo() {
     int8_t valB = converterParaInteiro(paramB);
     int8_t resultado = 0;
     bool overflow = false;
+    String operacaoExecutada = "";
 
     // 2. Operação Aritmética Dinâmica [cite: 53]
     if (op == "add") {
         resultado = valA + valB;
 
+        operacaoExecutada = "( " + String(valA) + " ) + ( " + String(valB) + " )";
+
         overflow = HasOverFlow(valA, valB, resultado);
     } else if (op == "sub") {
         resultado = valA - valB;
-        
+        operacaoExecutada = "( " + String(valA) + " ) - ( " + String(valB) + " )";
+
         overflow = HasOverFlow(valA, -valB, resultado);
     } else {
         server.send(400, "application/json", "{\"error\":\"Operação inválida. Use 'add' ou 'sub'.\"}");
@@ -90,6 +94,7 @@ void tratarCalculo() {
     digitalWrite(LED_BIT3, (resultadoMascarado >> 3) & 0x01);
 
     String jsonResposta = "{";
+    jsonResposta += "\"operacao\":\"" + operacaoExecutada + "\",";
     jsonResposta += "\"resultado_decimal\":" + String(resultado) + ",";
     jsonResposta += "\"resultado_bin\":\"" + paraStringBinaria(resultadoMascarado) + "\",";
     jsonResposta += "\"overflow\":" + String(overflow ? "true" : "false");
