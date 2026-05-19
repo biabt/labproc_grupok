@@ -42,6 +42,9 @@ String paraStringBinaria(int8_t valor) {
     return str;
 }
 
+bool OverFlowPositivo(int8_t resultado) { return resultado > 7; }
+bool OverFlowNegativo(int8_t resultado) { return resultado < -8;}
+
 void tratarCalculo() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
 
@@ -58,7 +61,6 @@ void tratarCalculo() {
         server.send(400, "application/json", "{\"error\":\"Os operandos devem conter exatamente 4 bits binários (0 ou 1).\"}");
         return;
     }
-
     int8_t valA = converterParaInteiro(paramA);
     int8_t valB = converterParaInteiro(paramB);
     int8_t resultado = 0;
@@ -68,13 +70,13 @@ void tratarCalculo() {
     if (op == "add") {
         resultado = valA + valB;
         // Overflow na Soma: Dois positivos geram negativo OU dois negativos geram positivo
-        if ((valA > 0 && valB > 0 && resultado <= 0) || (valA < 0 && valB < 0 && resultado >= 0)) {
+        if ((valA > 0 && valB > 0 && OverFlowPositivo(resultado)) || (valA < 0 && valB < 0 && OverFlowNegativo(resultado))) {
             overflow = true;
         }
     } else if (op == "sub") {
         resultado = valA - valB;
         // Overflow na Subtração: Positivo menos negativo gera negativo OU vice-versa
-        if ((valA >= 0 && valB < 0 && resultado < 0) || (valA < 0 && valB > 0 && resultado > 0)) {
+        if ((valA >= 0 && valB < 0 && OverFlowPositivo(resultado)) || (valA < 0 && valB > 0 && OverFlowNegativo(resultado))) {
             overflow = true;
         }
     } else {
