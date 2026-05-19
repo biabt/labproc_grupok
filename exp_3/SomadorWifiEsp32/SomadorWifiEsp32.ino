@@ -42,8 +42,11 @@ String paraStringBinaria(int8_t valor) {
     return str;
 }
 
-bool OverFlowPositivo(int8_t resultado) { return resultado > 7; }
-bool OverFlowNegativo(int8_t resultado) { return resultado < -8;}
+bool OverFlowPositivo(int8_t valA, int8_t valB, int8_t resultado) { return valA > 0 && valB > 0 && resultado > 7; }
+bool OverFlowNegativo(int8_t valA, int8_t valB, int8_t resultado) { return valA < 0 && valB < 0 && resultado < -8;}
+bool HasOverFlow(int8_t valA, int8_t valB, int8_t resultado) {
+    return OverFlowPositivo(valA, valB, resultado) || OverFlowNegativo(valA, valB, resultado);
+}
 
 void tratarCalculo() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -69,16 +72,12 @@ void tratarCalculo() {
     // 2. Operação Aritmética Dinâmica [cite: 53]
     if (op == "add") {
         resultado = valA + valB;
-        // Overflow na Soma: Dois positivos geram negativo OU dois negativos geram positivo
-        if ((valA > 0 && valB > 0 && OverFlowPositivo(resultado)) || (valA < 0 && valB < 0 && OverFlowNegativo(resultado))) {
-            overflow = true;
-        }
+
+        overflow = HasOverFlow(valA, valB, resultado);
     } else if (op == "sub") {
         resultado = valA - valB;
-        // Overflow na Subtração: Positivo menos negativo gera negativo OU vice-versa
-        if ((valA >= 0 && valB < 0 && OverFlowPositivo(resultado)) || (valA < 0 && valB > 0 && OverFlowNegativo(resultado))) {
-            overflow = true;
-        }
+        
+        overflow = HasOverFlow(valA, -valB, resultado);
     } else {
         server.send(400, "application/json", "{\"error\":\"Operação inválida. Use 'add' ou 'sub'.\"}");
         return;
