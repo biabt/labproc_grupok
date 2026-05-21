@@ -121,5 +121,13 @@ int main() {
     std::cout << "[Caso 7] Esperado: 3 + (-0) = 3 | Carry: SIM | Overflow: NAO" << std::endl;
     rodarTeste("0011", "1111", "add"); 
 
+    // Teste 7: Operação envolvendo o Zero Positivo (0000) como elemento neutro
+    std::cout << "[Caso 7] Esperado: 3 + 0 = 3 | Carry: NAO | Overflow: NAO" << std::endl;
+    rodarTeste("0011", "0000", "add"); 
+
+    // Teste 7: Operação envolvendo o Zero Positivo (0000) como elemento neutro
+    std::cout << "[Caso 7] Esperado: 0 + 0 = 0 | Carry: NAO | Overflow: NAO" << std::endl;
+    rodarTeste("0000", "0000", "add"); 
+
     return 0;
 }
