@@ -40,7 +40,6 @@ bool HasOverflow(int8_t a, int8_t b, int8_t resultado) {
 }
 
 uint8_t somarComplementoDeUm(uint8_t aBits, uint8_t bBits, bool& gerouCarryOut) {
-    // Soma armazenada em container de 16 bits para capturar o estouro no bit 4 (Carry Out)
     uint16_t somaPura = (aBits & 0x0F) + (bBits & 0x0F);
     
     if (somaPura & 0x10) {
@@ -55,18 +54,16 @@ uint8_t somarComplementoDeUm(uint8_t aBits, uint8_t bBits, bool& gerouCarryOut) 
 
 
 void setup() {
-    Serial.begin(115200); // Inicialização obrigatória do monitor serial 
+    Serial.begin(115200);
 
 
     Serial.println(F("===================================================="));
     Serial.println(F("CALCULADORA DE 4 BITS - COMPLEMENTO DE 1"));
     Serial.println(F("===================================================="));
     Serial.println(F("Digite o comando no formato exato: A,B,OP"));
-    Serial.println(F("Onde OP deve ser 'add' ou 'sub'. Exemplo: 0011,0010,add\n"));
 }
 
 void loop() {
-    // Varredura ativa aguardando a entrada de dados via teclado no buffer serial 
     if (Serial.available() > 0) {
         String entradaRaw = Serial.readString();
         entradaRaw.trim();
@@ -118,7 +115,6 @@ void loop() {
         overflow = HasOverflow(obterDecimalDoComp1(aBits), obterDecimalDoComp1(bBits), obterDecimalDoComp1(resultadoBits));
 
 
-        // 4. Feedback Completo de Diagnóstico impresso de volta na tela do PC [cite: 231, 245]
         Serial.println(F("----------------------------------------------------"));
         Serial.print(F("Operação: ")); Serial.print(valA); Serial.print(op == "add" ? " + " : " - "); Serial.println(valB);
         Serial.print(F("Bits de Entrada: [A]: ")); Serial.print(paramA); Serial.print(F(" | [B]: ")); Serial.println(paramB);
