@@ -7,7 +7,7 @@ int8_t obterDecimalDoComp1(uint8_t bits) {
     return (int8_t)(bits & 0x0F);
 }
 
-std::string paraStringBinariaComp1(int8_t valor) {
+String paraStringBinariaComp1(int8_t valor) {
     uint8_t bits = 0;
     if (valor < 0) {
         bits = (~(std::abs(valor))) & 0x0F;
@@ -15,7 +15,7 @@ std::string paraStringBinariaComp1(int8_t valor) {
         bits = valor & 0x0F;
     }
 
-    std::string str = "";
+    String str = "";
     for (int i = 3; i >= 0; i--) {
         str += ((bits >> i) & 0x01) ? '1' : '0';
     }
@@ -93,6 +93,7 @@ void loop() {
         uint8_t aBits = strtol(paramA.c_str(), NULL, 2) & 0x0F;
         uint8_t bBits = strtol(paramB.c_str(), NULL, 2) & 0x0F;
         int8_t resultado = 0;
+        int8_t resultadoBits = 0;
         bool carryOutAtivo = false;
         bool overflow = false;
 
@@ -116,7 +117,7 @@ void loop() {
 
 
         Serial.println(F("----------------------------------------------------"));
-        Serial.print(F("Operação: ")); Serial.print(valA); Serial.print(op == "add" ? " + " : " - "); Serial.println(valB);
+        Serial.print(F("Operação: ")); Serial.print(aBits); Serial.print(op == "add" ? " + " : " - "); Serial.println(bBits);
         Serial.print(F("Bits de Entrada: [A]: ")); Serial.print(paramA); Serial.print(F(" | [B]: ")); Serial.println(paramB);
         Serial.print(F("End-Around Carry (Carry Out): ")); Serial.println(carryOutAtivo ? F("1") : F("0"));
         Serial.print(F("Resultado Decimal: ")); Serial.println((int)resultado);
