@@ -92,7 +92,6 @@ void loop() {
         // 1. Conversão das entradas strings para o tipo inteiro estrito de 8 bits
         uint8_t aBits = strtol(paramA.c_str(), NULL, 2) & 0x0F;
         uint8_t bBits = strtol(paramB.c_str(), NULL, 2) & 0x0F;
-        int8_t resultado = 0;
         int8_t resultadoBits = 0;
         bool carryOutAtivo = false;
         bool overflow = false;
@@ -115,13 +114,17 @@ void loop() {
         }
         overflow = HasOverflow(obterDecimalDoComp1(aBits), obterDecimalDoComp1(bBits), obterDecimalDoComp1(resultadoBits));
 
+        int8_t valA = obterDecimalDoComp1(aBits);
+        int8_t valB = obterDecimalDoComp1(bBits);
+        int8_t resultadoDecimal = obterDecimalDoComp1(resultadoBits); 
+
 
         Serial.println(F("----------------------------------------------------"));
-        Serial.print(F("Operação: ")); Serial.print(aBits); Serial.print(op == "add" ? " + " : " - "); Serial.println(bBits);
+        Serial.print(F("Operação: ")); Serial.print(valA); Serial.print(op == "add" ? " + " : " - "); Serial.println(valB);
         Serial.print(F("Bits de Entrada: [A]: ")); Serial.print(paramA); Serial.print(F(" | [B]: ")); Serial.println(paramB);
         Serial.print(F("End-Around Carry (Carry Out): ")); Serial.println(carryOutAtivo ? F("1") : F("0"));
-        Serial.print(F("Resultado Decimal: ")); Serial.println((int)resultado);
-        Serial.print(F("Resultado Binário (Comp. 1): ")); Serial.println(paraStringBinariaComp1(resultado));
+        Serial.print(F("Resultado Decimal: ")); Serial.println((int)resultadoDecimal);
+        Serial.print(F("Resultado Binário (Comp. 1): ")); Serial.println(paraStringBinariaComp1(resultadoBits));
         if (overflow) {
             Serial.println(F("HOUVE OVERFLOW!"));
         } else {
