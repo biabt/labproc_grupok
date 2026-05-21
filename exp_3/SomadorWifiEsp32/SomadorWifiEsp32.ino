@@ -1,10 +1,10 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-#define LED_BIT0 10
-#define LED_BIT1 11
-#define LED_BIT2 12
-#define LED_BIT3 13
+#define LED_BIT0 6
+#define LED_BIT1 7
+#define LED_BIT2 8
+#define LED_BIT3 9
 
 WebServer server(80);
 
@@ -21,7 +21,7 @@ int8_t converterParaInteiro(String binStr) {
     return (int8_t)(valor & 0x0F);
 }
 
-bool isStringBinaryValid(String binStr) {
+bool isStringBinaryValidWifi(String binStr) {
     if (binStr.length() != 4) 
         return false; 
     
@@ -60,7 +60,7 @@ void tratarCalculo() {
     String paramB = server.arg("b");
     String op     = server.arg("op");
 
-    if (!isStringBinaryValid(paramA) || !isStringBinaryValid(paramB)) {
+    if (!isStringBinaryValidWifi(paramA) || !isStringBinaryValidWifi(paramB)) {
         server.send(400, "application/json", "{\"error\":\"Os operandos devem conter exatamente 4 bits binários (0 ou 1).\"}");
         return;
     }
@@ -104,7 +104,7 @@ void tratarCalculo() {
 }
 
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(9600);
 
     pinMode(LED_BIT0, OUTPUT);
     pinMode(LED_BIT1, OUTPUT);
