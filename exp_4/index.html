@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard da Calculadora Parametrizável</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 340px;
+            text-align: center;
+        }
+        h2 { color: #333; margin-bottom: 15px; }
+        
+        /* Estilização da Chave Seletora de Modo */
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #eee;
+            padding: 8px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .mode-label {
+            margin: 0 10px;
+            color: #666;
+            transition: color 0.3s;
+        }
+        .mode-label.active {
+            color: #2b7a78;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+        }
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2b7a78;
+        }
+        input:checked + .slider:before {
+            transform: translateX(18px);
+        }
+
+        /* Estilos do Formulário */
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        label { font-weight: bold; display: block; margin-bottom: 5px; color: #555; font-size: 14px; }
+        
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+            text-align: center;
+        }
+        input[type="text"] {
+            font-family: monospace;
+            font-size: 16px;
+        }
+        
+        /* Layout em Grade para os 5 Botões de Operação */
+        .buttons-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1 1 28%; /* Alinha de forma responsiva mantendo tamanho proporcional */
+            min-width: 80px;
+            padding: 10px 5px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            font-size: 13px;
+            transition: background-color 0.2s;
+        }
+        .btn-add { background-color: #2b7a78; }
+        .btn-sub { background-color: #3aafa9; }
+        .btn-mul { background-color: #17252a; }
+        .btn-div { background-color: #f4a261; }
+        .btn-fat { background-color: #e76f51; }
+        button:hover { opacity: 0.9; }
+        
+        /* Containers de Mensagem */
+        #resultado-container {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+            text-align: left;
+        }
+        .op-text {
+            font-size: 13px;
+            border-bottom: 1px dashed rgba(0,0,0,0.15);
+            padding-bottom: 4px;
+            margin-bottom: 6px;
+            font-weight: normal;
+        }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-overflow { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Dashboard ULA</h2>
+
+    <div class="mode-selector">
+        <span id="label-esp" class="mode-label active">ESP32</span>
+        <label class="switch">
+            <input type="checkbox" id="mode-toggle" onchange="atualizarInterfaceModo()">
+            <span class="slider"></span>
+        </label>
+        <span id="label-teste" class="mode-label">TEST</span>
+    </div>
+
+    <div class="form-group">
+        <label for="nBits">Configuração de Palavra (Bits):</label>
+        <input type="number" id="nBits" value="4" min="2" max="24" onchange="ajustarEscopoBits()">
+    </div>
+    
+    <div class="form-group">
+        <label id="labelOpA" for="opA">Operando A (4 bits):</label>
+        <input type="text" id="opA" placeholder="Ex: 0110" maxlength="4" value="0110" oninput="aplicarMascaraBinaria(this)">
+    </div>
+    
+    <div class="form-group" id="groupOpB">
+        <label id="labelOpB" for="opB">Operando B (4 bits):</label>
+        <input type="text" id="opB" placeholder="Ex: 0010" maxlength="4" value="0010" oninput="aplicarMascaraBinaria(this)">
+    </div>
+    
+    <div class="buttons-grid">
+        <button class="btn-add" onclick="enviarRequisicao('add')">SOMA</button>
+        <button class="btn-sub" onclick="enviarRequisicao('sub')">SUB</button>
+        <button class="btn-mul" onclick="enviarRequisicao('mul')">MUL</button>
+        <button class="btn-div" onclick="enviarRequisicao('div')">DIV</button>
+        <button class="btn-fat" onclick="enviarRequisicao('fat')">FAT</button>
+    </div>
+
+    <div id="resultado-container"></div>
+</div>
+
+<script>
+    const ESP32_IP = "http://192.168.4.1";
+
+    function aplicarMascaraBinaria(input) {
+        input.value = input.value.replace(/[^01]/g, '');
+    }
+
+    // Altera dinamicamente os limites de interface baseados no número N de bits fornecido
+    function ajustarEscopoBits() {
+        const nBits = parseInt(document.getElementById('nBits').value) || 4;
+        
+        const opA = document.getElementById('opA');
+        const opB = document.getElementById('opB');
+        
+        document.getElementById('labelOpA').innerText = `Operando A (${nBits} bits):`;
+        document.getElementById('labelOpB').innerText = `Operando B (${nBits} bits):`;
+        
+        opA.maxLength = nBits;
+        opB.maxLength = nBits;
+        
+        // Zera as caixas de texto para evitar strings com tamanhos misturados
+        opA.value = "".padStart(nBits, '0');
+        opB.value = "".padStart(nBits, '0');
+        
+        opA.placeholder = `Ex: ${"1".padStart(nBits, '0')}`;
+        opB.placeholder = `Ex: ${"1".padStart(nBits, '0')}`;
+        
+        document.getElementById('resultado-container').style.display = "none";
+    }
+
+    function atualizarInterfaceModo() {
+        const isModoTeste = document.getElementById('mode-toggle').checked;
+        document.getElementById('label-esp').className = isModoTeste ? "mode-label" : "mode-label active";
+        document.getElementById('label-teste').className = isModoTeste ? "mode-label active" : "mode-label";
+        document.getElementById('resultado-container').style.display = "none";
+    }
+
+    function enviarRequisicao(operacao) {
+        const nBits = parseInt(document.getElementById('nBits').value) || 4;
+        const a = document.getElementById('opA').value.trim();
+        const b = document.getElementById('opB').value.trim();
+        const resContainer = document.getElementById('resultado-container');
+        const isModoTeste = document.getElementById('mode-toggle').checked;
+
+        // Validação dinâmica do tamanho da string baseada no N selecionado
+        if (a.length !== nBits || (operacao !== 'fat' && b.length !== nBits)) {
+            resContainer.className = "alert-overflow";
+            resContainer.innerHTML = `Erro: Os operandos precisam ter exatamente ${nBits} bits.`;
+            resContainer.style.display = "block";
+            return;
+        }
+
+        // ================= MODO SIMULADO (TEST) VARIÁVEL =================
+        if (isModoTeste) {
+            // Extensão de sinal dinâmica para N bits genéricos
+            const converterParaSinalNBits = (bin) => {
+                let n = parseInt(bin, 2);
+                let bitSinal = 1 << (nBits - 1);
+                return (n & bitSinal) ? (n - (1 << nBits)) : n; 
+            };
+
+            const valA = converterParaSinalNBits(a);
+            const valB = (operacao === 'fat') ? 0 : converterParaSinalNBits(b);
+            
+            let contaPura = 0;
+            let overflow = false;
+            let operacaoSimulada = "";
+
+            // Definição dos limites em complemento de dois
+            const limiteSuperior = (1 << (nBits - 1)) - 1;
+            const limiteInferior = -(1 << (nBits - 1));
+
+            if (operacao === 'add') {
+                contaPura = valA + valB;
+                operacaoSimulada = `( ${valA} ) + ( ${valB} )`;
+                if ((valA > 0 && valB > 0 && contaPura > limiteSuperior) || 
+                    (valA < 0 && valB < 0 && contaPura < limiteInferior)) {
+                    overflow = true;
+                }
+            } 
+            else if (operacao === 'sub') {
+                contaPura = valA - valB;
+                operacaoSimulada = `( ${valA} ) - ( ${valB} )`;
+                if ((valA >= 0 && valB < 0 && contaPura > limiteSuperior) || 
+                    (valA < 0 && valB > 0 && contaPura < limiteInferior)) {
+                    overflow = true;
+                }
+            } 
+            else if (operacao === 'mul') {
+                contaPura = valA * valB;
+                operacaoSimulada = `( ${valA} ) * ( ${valB} )`;
+                if (contaPura > limiteSuperior || contaPura < limiteInferior) overflow = true;
+            } 
+            else if (operacao === 'div') {
+                operacaoSimulada = `( ${valA} ) / ( ${valB} )`;
+                if (valB === 0) {
+                    contaPura = 0;
+                    overflow = true; // Força erro de overflow para divisão por zero
+                } else {
+                    contaPura = Math.trunc(valA / valB); // Truncamento inteiro idêntico ao C++
+                    if (contaPura > limiteSuperior || contaPura < limiteInferior) overflow = true;
+                }
+            } 
+            else if (operacao === 'fat') {
+                operacaoSimulada = `${valA}!`;
+                if (valA < 0) {
+                    contaPura = 0;
+                } else {
+                    let f = 1;
+                    for (let i = 2; i <= valA; i++) f *= i;
+                    contaPura = f;
+                }
+                if (contaPura > limiteSuperior || contaPura < limiteInferior) overflow = true;
+            }
+
+            // Aplica a máscara e gera a string binária contendo o padding dinâmico
+            let mascaraBits = (1 << nBits) - 1;
+            let resultadoBinario = (contaPura & mascaraBits).toString(2).padStart(nBits, '0');
+            
+            resContainer.style.display = "block";
+            if (overflow) {
+                resContainer.className = "alert-overflow";
+                resContainer.innerHTML = `<div class="op-text"><b>Operação:</b> ${operacaoSimulada}</div>
+                                          [TESTE] Overflow/Erro! <br> Resultado Bruto 4b: ${resultadoBinario}`;
+            } else {
+                resContainer.className = "alert-success";
+                resContainer.innerHTML = `<div class="op-text"><b>Operação:</b> ${operacaoSimulada}</div>
+                                          [TESTE] Sucesso! <br> Resultado Mascarado: ${resultadoBinario}`;
+            }
+            return; 
+        }
+        
+        // ================= MODO DE REDE FÍSICO (ESP32) =================
+        const url = `${ESP32_IP}/calc?a=${a}&b=${b}&op=${operacao}&bits=${nBits}`;
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error("Erro na resposta do servidor");
+                return response.json();
+            })
+            .then(data => {
+                resContainer.style.display = "block";
+                if (data.overflow) {
+                    resContainer.className = "alert-overflow";
+                    resContainer.innerHTML = `<div class="op-text"><b>Operação:</b> ${data.operacao}</div>
+                                              Overflow! <br> Resultado Bruto: ${data.resultado_bin}`;
+                } else {
+                    resContainer.className = "alert-success";
+                    resContainer.innerHTML = `<div class="op-text"><b>Operação:</b> ${data.operacao}</div>
+                                              Sucesso! <br> Resultado Mascarado: ${data.resultado_bin}`;
+                }
+            })
+            .catch(error => {
+                resContainer.className = "alert-overflow";
+                resContainer.innerHTML = "Erro de conexão com o ESP32.";
+                resContainer.style.display = "block";
+                console.error(error);
+            });
+    }
+</script>
+
+</body>
+</html>
