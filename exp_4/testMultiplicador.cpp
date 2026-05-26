@@ -3,25 +3,24 @@
 #include <cstdlib>
 #include <cstdint>
 
-#define N_BITS 4
-
-// Adaptando a função substituindo a String do Arduino por std::string do C++
-int converterParaInteiro(std::string binStr) {
+// Converte string binária para inteiro com extensão de sinal dinâmica baseada em nBits
+int converterParaInteiro(std::string binStr, int nBits) {
     long valor = strtol(binStr.c_str(), NULL, 2); 
 
-    long mascaraValida = (1 << N_BITS) - 1; //(Ex: se nBits=4, vira 1111)
-    valor = valor & mascaraValida; // Filtra a mascara com os bits validos (ex: 10101 vira 0101)
+    long mascaraValida = (1 << nBits) - 1; 
+    valor = valor & mascaraValida; 
 
-    if (valor & (1 << (N_BITS - 1))) {
+    if (valor & (1 << (nBits - 1))) {
         long mascaraExtensaoSinal = ~mascaraValida;
-        
         return (int)(valor | mascaraExtensaoSinal); 
     }
     
     return (int)valor;
 }
 
-int MascaraBits(int value) { return value & ((1 << N_BITS) - 1); }
+int MascaraBits(int value, int nBits) { 
+    return value & ((1 << nBits) - 1); 
+}
 
 int fatorial(int n) {
     if (n < 0) return 0; // Fatorial não definido para números negativos
@@ -33,122 +32,110 @@ int fatorial(int n) {
     return result;
 }
 
-// CORREÇÃO: Alterado de String para std::string
-std::string paraStringBinaria(int valor) {
+std::string paraStringBinaria(int valor, int nBits) {
     std::string str = "";
-    for (int i = N_BITS - 1; i >= 0; i--) {
-        // Concatena caracteres puros ('1' ou '0') na std::string
+    for (int i = nBits - 1; i >= 0; i--) {
         str += ((valor >> i) & 0x0001) ? '1' : '0';
     }
     return str;
 }
-bool OverFlowPositivo(int value) { return value > (1 << N_BITS - 1) - 1; }
-bool OverFlowNegativo(int value) { return value < -(1 << N_BITS - 1); }
-bool HasOverFlow(int value) { return OverFlowPositivo(value) || OverFlowNegativo(value); }
-bool OverFlowSomaPositivo(int valA, int valB, int resultado) { return valA > 0 && valB > 0 && OverFlowPositivo(resultado); }
-bool OverFlowSomaNegativo(int valA, int valB, int resultado) { return valA < 0 && valB < 0 && OverFlowNegativo(resultado); }
-bool HasOverFlowSoma(int valA, int valB, int resultado) {
-    return OverFlowSomaPositivo(valA, valB, resultado) || OverFlowSomaNegativo(valA, valB, resultado);
+
+// Funções de overflow ajustadas para receber nBits como parâmetro
+bool OverFlowPositivo(int value, int nBits) { return value > (1 << (nBits - 1)) - 1; }
+bool OverFlowNegativo(int value, int nBits) { return value < -(1 << (nBits - 1)); }
+bool HasOverFlow(int value, int nBits) { return OverFlowPositivo(value, nBits) || OverFlowNegativo(value, nBits); }
+
+bool OverFlowSomaPositivo(int valA, int valB, int resultado, int nBits) { return valA > 0 && valB > 0 && OverFlowPositivo(resultado, nBits); }
+bool OverFlowSomaNegativo(int valA, int valB, int resultado, int nBits) { return valA < 0 && valB < 0 && OverFlowNegativo(resultado, nBits); }
+bool HasOverFlowSoma(int valA, int valB, int resultado, int nBits) {
+    return OverFlowSomaPositivo(valA, valB, resultado, nBits) || OverFlowSomaNegativo(valA, valB, resultado, nBits);
 }
 
-// Função de teste automatizado
-void rodarTeste(std::string a_str, std::string b_str, std::string op) {
-    int valA = converterParaInteiro(a_str);
-    int valB = converterParaInteiro(b_str);
+// Função de teste automatizado recebendo nBits parametricamente
+void rodarTeste(int nBits, std::string a_str, std::string b_str, std::string op) {
+    int valA = converterParaInteiro(a_str, nBits);
+    int valB = converterParaInteiro(b_str, nBits);
     int resultado = 0;
     bool overflow = false;
     std::string sinalOp = "";
 
     if (op == "add") {
         resultado = valA + valB;
-        overflow = HasOverFlowSoma(valA, valB, resultado);
+        overflow = HasOverFlowSoma(valA, valB, resultado, nBits);
         sinalOp = "+";
     } else if (op == "sub") {
         resultado = valA - valB;
-        overflow = HasOverFlowSoma(valA, -valB, resultado);
+        overflow = HasOverFlowSoma(valA, -valB, resultado, nBits);
         sinalOp = "-";
     } else if (op == "mul") {
         resultado = valA * valB;
-        overflow = HasOverFlow(resultado);
+        overflow = HasOverFlow(resultado, nBits);
         sinalOp = "*";
     } else if (op == "fat") {
         resultado = fatorial(valA);
-        overflow = HasOverFlow(resultado);
+        overflow = HasOverFlow(resultado, nBits);
         sinalOp = "!";
+    } else if (op == "div") {
+        sinalOp = "/";
+        if (valB == 0) {
+            resultado = 0;
+            overflow = true; 
+        } else {
+            resultado = valA / valB;
+            overflow = HasOverFlow(resultado, nBits);
+        }
     } else {
         std::cout << "Operação inválida." << std::endl;
         return;
     }
 
-    // Mascara o resultado final para 4 bits para exibição correta da string binária
-    int resultadoMascarado = MascaraBits(resultado);
+    int resultadoMascarado = MascaraBits(resultado, nBits);
 
-    // Trocado \n por std::endl para forçar a impressão imediata no terminal do Windows
-    std::cout << "Operacao: ";
+    std::cout << "[" << nBits << " BITS] Operacao: ";
     if (op == "fat") {
-        std::cout << (int)valA << " ( " << paraStringBinaria(valA) << " )" << "!" << " = ";
+        std::cout << (int)valA << " ( " << paraStringBinaria(MascaraBits(valA, nBits), nBits) << " )" << "!" << " = ";
     } else {
-        std::cout << (int)valA << " ( " << paraStringBinaria(valA) << " )" << " " << sinalOp << " " << (int)valB << " ( " << paraStringBinaria(valB) << " )" << " = ";
+        std::cout << (int)valA << " ( " << paraStringBinaria(MascaraBits(valA, nBits), nBits) << " )" << " " << sinalOp << " " << (int)valB << " ( " << paraStringBinaria(MascaraBits(valB, nBits), nBits) << " )" << " = ";
     }
-    std::cout << (int)resultado << " ( " << paraStringBinaria(resultado) << " )" << " | Overflow: " << (overflow ? "SIM" : "NAO") << std::endl;
+    std::cout << (int)resultado << " ( " << paraStringBinaria(resultadoMascarado, nBits) << " )" << " | Overflow: " << (overflow ? "SIM" : "NAO") << std::endl;
 }
 
 int main() {
-    // Trocado \n por std::endl para garantir o flush inicial do buffer
-    std::cout << "--- CASOS DE TESTE DA ULA DE 4 BITS ---" << std::endl;
+    std::cout << "========================================================" << std::endl;
+    std::cout << "--- BATERIA DE TESTES COM N_BITS PARAMÉTRICO ---" << std::endl;
+    std::cout << "========================================================" << std::endl;
     
-    // Teste 1: 3 + 2 = 5 (OK) [cite: 232]
-    std::cout << "Teste 1 - Resultado esperado: 3 + 2 = 5, Overflow: NAO" << std::endl;
-    rodarTeste("0011", "0010", "add"); 
+    // --- GRUPO 1: CENÁRIOS EM 4 BITS (Limites: -8 a +7) ---
+    std::cout << "\n>>> EXECUTANDO TESTES EM 4 BITS <<<" << std::endl;
+    rodarTeste(4, "0011", "0010", "add"); // 3 + 2 = 5 (OK)
+    rodarTeste(4, "0111", "0010", "add"); // 7 + 2 = 9 (Overflow)
+    rodarTeste(4, "0011", "0011", "mul"); // 3 * 3 = 9 (Overflow)
+    rodarTeste(4, "0110", "0010", "div"); // 6 / 2 = 3 (OK)
+    rodarTeste(4, "0100", "0000", "fat"); // 4! = 24 (Overflow)
+
+    // --- GRUPO 2: CENÁRIOS EM 8 BITS (Limites: -128 a +127) ---
+    std::cout << "\n>>> EXECUTANDO TESTES EM 8 BITS <<<" << std::endl;
+    // Em 4 bits 7+2 dava overflow. Aqui em 8 bits ("00000111" + "00000010") deve dar OK!
+    std::cout << "Teste de escala (7 + 2 em 8 bits):" << std::endl;
+    rodarTeste(8, "00000111", "00000010", "add"); 
     
-    // Teste 2: 7 + 2 = 9 (Deve acusar Overflow -> Invasão de bit de sinal gerando -7)
-    std::cout << "Teste 2 - Resultado esperado: 7 + 2 = 9, Overflow: SIM" << std::endl;
-    rodarTeste("0111", "0010", "add"); 
+    // Em 4 bits 4! dava overflow. Aqui em 8 bits (4! = 24) cabe com folga!
+    std::cout << "Teste de escala (4! em 8 bits):" << std::endl;
+    rodarTeste(8, "00000100", "00000000", "fat"); 
 
-    std::cout << "Teste 3 - Resultado esperado: (-5) + (-4) = -9, Overflow: SIM" << std::endl;
-    rodarTeste("1011", "1100", "add"); 
-    
-    std::cout << "Teste 4 - Resultado esperado: (-8) - (-5) = -3, Overflow: NAO" << std::endl;
-    rodarTeste("1000", "1011", "sub"); 
+    // Multiplicação gerando estouro para 8 bits: 20 * 10 = 200 (Estoura +127)
+    std::cout << "Teste de estouro em 8 bits (20 * 10 = 200):" << std::endl;
+    rodarTeste(8, "00010100", "00001010", "mul"); 
 
-    std::cout << "Teste 5 - Resultado esperado: (-8) - (1) = -9, Overflow: SIM" << std::endl;
-    rodarTeste("1000", "0001", "sub"); 
+    // --- GRUPO 3: CENÁRIOS EM 16 BITS (Limites: -32768 a +32767) ---
+    std::cout << "\n>>> EXECUTANDO TESTES EM 16 BITS <<<" << std::endl;
+    // O teste anterior que quebrou em 8 bits (20 * 10 = 200), agora em 16 bits passa liso
+    std::cout << "Teste de escala (20 * 10 em 16 bits):" << std::endl;
+    rodarTeste(16, "0000000000010100", "0000000000001010", "mul");
 
-    std::cout << "Teste 6 - Resultado esperado: (6) - (-3) = 9, Overflow: SIM" << std::endl;
-    rodarTeste("0110", "1011", "sub");
-
-    std::cout << "Teste 7 - Resultado esperado: (-2) - (-8) = 6, Overflow: NAO" << std::endl;
-    rodarTeste("1110", "1000", "sub"); 
-
-    std::cout << "\n[NOVOS] MULTIPLICACAO:" << std::endl;
-    // Teste 8: 2 * 3 = 6 (OK)
-    std::cout << "Teste 8 - Esperado: 2 * 3 = 6, Overflow: NAO" << std::endl;
-    rodarTeste("0010", "0011", "mul");
-
-    // Teste 9: 3 * 3 = 9 (Overflow Positivo -> 9 excede 7)
-    std::cout << "Teste 9 - Esperado: 3 * 3 = 9, Overflow: SIM" << std::endl;
-    rodarTeste("0011", "0011", "mul");
-
-    // Teste 10: -2 * 3 = -6 (OK)
-    std::cout << "Teste 10 - Esperado: -2 * 3 = -6, Overflow: NAO" << std::endl;
-    rodarTeste("1110", "0011", "mul");
-
-    // Teste 11: -4 * 3 = -12 (Overflow Negativo -> -12 ultrapassa -8)
-    std::cout << "Teste 11 - Esperado: -4 * 3 = -12, Overflow: SIM" << std::endl;
-    rodarTeste("1100", "0011", "mul");
-
-    std::cout << "\n[NOVOS] FATORIAL (Limites: -8 a +7):" << std::endl;
-    // Teste 12: 3! = 6 (OK)
-    std::cout << "Teste 12 - Esperado: 3! = 6, Overflow: NAO" << std::endl;
-    rodarTeste("0011", "0000", "fat");
-
-    // Teste 13: 4! = 24 (Overflow Positivo -> 24 excede 7)
-    std::cout << "Teste 13 - Esperado: 4! = 24, Overflow: SIM" << std::endl;
-    rodarTeste("0100", "0000", "fat");
-
-    // Teste 14: 0! = 1 (OK)
-    std::cout << "Teste 14 - Esperado: 0! = 1, Overflow: NAO" << std::endl;
-    rodarTeste("0000", "0000", "fat");
+    // Fatorial de 8 (8! = 40320) excede o teto de +32767, gerando overflow em 16 bits
+    std::cout << "Teste de estouro em 16 bits (8! = 40320):" << std::endl;
+    rodarTeste(16, "0000000000001000", "0000000000000000", "fat");
 
     return 0;
 }
