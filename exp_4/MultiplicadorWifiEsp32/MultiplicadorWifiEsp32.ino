@@ -10,32 +10,32 @@
 WebServer server(80);
 
 // Configuração do Ponto de Acesso (Access Point) do ESP32
-const char *ssid = "Calculadora_ESP32";
+const char *ssid = "Calculadora_ESP32_GrupoK";
 const char *password = "";
 
 // Conversão com extensão de sinal dinâmica baseada em nBits
-int converterParaInteiro(String binStr, int nBits) {
+long converterParaLong(String binStr, long nBits) {
     long valor = strtol(binStr.c_str(), NULL, 2); 
     long mascaraValida = (1 << nBits) - 1; 
     valor = valor & mascaraValida; 
 
     if (valor & (1 << (nBits - 1))) {
         long mascaraExtensaoSinal = ~mascaraValida;
-        return (int)(valor | mascaraExtensaoSinal); 
+        return (long)(valor | mascaraExtensaoSinal); 
     }
-    return (int)valor;
+    return (long)valor;
 }
 
-int MascaraBits(int value, int nBits) { 
+long MascaraBits(long value, long nBits) { 
     return value & ((1 << nBits) - 1); 
 }
 
 // Validação flexível que aceita strings binárias de qualquer tamanho nBits
-bool isStringBinaryValidWifi(String binStr, int nBits) {
+bool isStringBinaryValidWifi(String binStr, long nBits) {
     if (binStr.length() != nBits) 
         return false; 
     
-    for (int i = 0; i < nBits; i++) {
+    for (long i = 0; i < nBits; i++) {
         char c = binStr.charAt(i);
         if (c != '0' && c != '1') 
             return false;        
@@ -44,32 +44,32 @@ bool isStringBinaryValidWifi(String binStr, int nBits) {
 }
 
 // Renderização dinâmica da string binária de saída com N bits
-String paraStringBinaria(int valor, int nBits) {
+String paraStringBinaria(long valor, long nBits) {
     String str = "";
-    for (int i = nBits - 1; i >= 0; i--) {
+    for (long i = nBits - 1; i >= 0; i--) {
         str += ((valor >> i) & 0x01) ? "1" : "0";
     }
     return str;
 }
 
-int fatorial(int n) {
+long fatorial(long n) {
     if (n < 0) return 0; 
     if (n == 0 || n == 1) return 1;
-    int result = 1;
-    for (int i = 2; i <= n; i++) {
+    long result = 1;
+    for (long i = 2; i <= n; i++) {
         result *= i;
     }
     return result;
 }
 
 // Macros dinâmicas de verificação de limites baseadas no nBits atual da requisição
-bool OverFlowPositivo(int value, int nBits) { return value > (1 << (nBits - 1)) - 1; }
-bool OverFlowNegativo(int value, int nBits) { return value < -(1 << (nBits - 1)); }
-bool HasOverFlow(int value, int nBits) { return OverFlowPositivo(value, nBits) || OverFlowNegativo(value, nBits); }
+bool OverFlowPositivo(long value, long nBits) { return value > (1 << (nBits - 1)) - 1; }
+bool OverFlowNegativo(long value, long nBits) { return value < -(1 << (nBits - 1)); }
+bool HasOverFlow(long value, long nBits) { return OverFlowPositivo(value, nBits) || OverFlowNegativo(value, nBits); }
 
-bool OverFlowSomaPositivo(int valA, int valB, int resultado, int nBits) { return valA > 0 && valB > 0 && OverFlowPositivo(resultado, nBits); }
-bool OverFlowSomaNegativo(int valA, int valB, int resultado, int nBits) { return valA < 0 && valB < 0 && OverFlowNegativo(resultado, nBits); }
-bool HasOverFlowSoma(int valA, int valB, int resultado, int nBits) {
+bool OverFlowSomaPositivo(long valA, long valB, long resultado, long nBits) { return valA > 0 && valB > 0 && OverFlowPositivo(resultado, nBits); }
+bool OverFlowSomaNegativo(long valA, long valB, long resultado, long nBits) { return valA < 0 && valB < 0 && OverFlowNegativo(resultado, nBits); }
+bool HasOverFlowSoma(long valA, long valB, long resultado, long nBits) {
     return OverFlowSomaPositivo(valA, valB, resultado, nBits) || OverFlowSomaNegativo(valA, valB, resultado, nBits);
 }
 
@@ -86,10 +86,10 @@ void tratarCalculo() {
     String paramA = server.arg("a");
     String paramB = server.arg("b");
     String op     = server.arg("op");
-    int nBits     = server.arg("bits").toInt();
+    long nBits     = atol(server.arg("bits").c_str());
 
     // Garante que o nBits fornecido esteja dentro de limites aceitáveis de hardware
-    if (nBits < 2 || nBits > 24) {
+    if (nBits < 2 || nBits > 64) {
         server.send(400, "application/json", "{\"error\":\"Quantidade de bits inválida (Use entre 2 e 24).\"}");
         return;
     }
@@ -99,13 +99,14 @@ void tratarCalculo() {
         return;
     }
 
-    int valA = converterParaInteiro(paramA, nBits);
-    int valB = (op == "fat") ? 0 : converterParaInteiro(paramB, nBits);
-    int resultado = 0;
+    long valA = converterParaLong(paramA, nBits);
+    long valB = (op == "fat") ? 0 : converterParaLong(paramB, nBits);
+    long resultado = 0;
     bool overflow = false;
     String operacaoExecutada = "";
 
     // 2. Engine da ULA Expandida para as 5 Operações do Laboratório
+    unsigned long t_inicio = micros();
     if (op == "add") {
         resultado = valA + valB;
         operacaoExecutada = "( " + String(valA) + " ) + ( " + String(valB) + " )";
@@ -141,8 +142,11 @@ void tratarCalculo() {
         return;
     }
 
+    unsigned long t_fim = micros();
+    unsigned long tempo_us = t_fim - t_inicio;
+
     // Isola o barramento mascarado de N bits
-    int resultadoMascarado = MascaraBits(resultado, nBits);
+    long resultadoMascarado = MascaraBits(resultado, nBits);
 
     // 3. Atualização física dos Atuadores (Mapeia os 4 bits mais baixos nos LEDs físicos)
     digitalWrite(LED_BIT0, (resultadoMascarado >> 0) & 0x01);
@@ -155,7 +159,8 @@ void tratarCalculo() {
     jsonResposta += "\"operacao\":\"" + operacaoExecutada + "\",";
     jsonResposta += "\"resultado_decimal\":" + String(resultado) + ",";
     jsonResposta += "\"resultado_bin\":\"" + paraStringBinaria(resultadoMascarado, nBits) + "\",";
-    jsonResposta += "\"overflow\":" + String(overflow ? "true" : "false");
+    jsonResposta += "\"overflow\":" + String(overflow ? "true" : "false") + ",";
+    jsonResposta += "\"tempo_us\":" + String(tempo_us);
     jsonResposta += "}";
 
     server.send(200, "application/json", jsonResposta);

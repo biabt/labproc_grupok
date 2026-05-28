@@ -9,10 +9,13 @@
             font-family: Arial, sans-serif;
             background-color: #f4f4f9;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            justify-content: flex-start;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 30px 15px;
+            box-sizing: border-box;
         }
         .container {
             background: white;
@@ -146,7 +149,50 @@
         }
         .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .alert-overflow { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; font-weight: bold; }
+
+        /* Benchmark */
+        .btn-benchmark {
+            width: 100%;
+            margin-top: 12px;
+            padding: 11px;
+            background-color: #17252a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            flex: none;
+        }
+        .btn-benchmark:hover:not(:disabled) { background-color: #2b7a78; }
+        .btn-benchmark:disabled { background-color: #aaa; cursor: not-allowed; opacity: 0.7; }
+
+        #benchmark-section {
+            width: 100%;
+            max-width: 860px;
+            margin-top: 24px;
+        }
+        #bench-progress {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #444;
+            text-align: center;
+            font-family: monospace;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -164,7 +210,7 @@
 
     <div class="form-group">
         <label for="nBits">Configuração de Palavra (Bits):</label>
-        <input type="number" id="nBits" value="4" min="2" max="24" onchange="ajustarEscopoBits()">
+        <input type="number" id="nBits" value="4" min="2" max="64" onchange="ajustarEscopoBits()">
     </div>
     
     <div class="form-group">
@@ -186,6 +232,16 @@
     </div>
 
     <div id="resultado-container"></div>
+    <button id="btn-benchmark" class="btn-benchmark" onclick="rodarTestes()">&#9654; RODAR TESTES DE BENCHMARK</button>
+</div>
+
+<div id="benchmark-section" style="display:none;">
+    <div id="bench-progress"></div>
+    <div class="chart-card"><canvas id="chart-add"></canvas></div>
+    <div class="chart-card"><canvas id="chart-sub"></canvas></div>
+    <div class="chart-card"><canvas id="chart-mul"></canvas></div>
+    <div class="chart-card"><canvas id="chart-div"></canvas></div>
+    <div class="chart-card"><canvas id="chart-fat"></canvas></div>
 </div>
 
 <script>
@@ -223,6 +279,9 @@
         document.getElementById('label-esp').className = isModoTeste ? "mode-label" : "mode-label active";
         document.getElementById('label-teste').className = isModoTeste ? "mode-label active" : "mode-label";
         document.getElementById('resultado-container').style.display = "none";
+        const btnBench = document.getElementById('btn-benchmark');
+        btnBench.disabled = isModoTeste;
+        btnBench.title = isModoTeste ? "Disponível apenas no modo ESP32" : "";
     }
 
     function enviarRequisicao(operacao) {
@@ -346,6 +405,201 @@
                 resContainer.style.display = "block";
                 console.error(error);
             });
+    }
+
+    // ================= BENCHMARK DE DESEMPENHO =================
+    const LISTA_N_BITS_BENCH = [4, 8, 12, 16, 20, 24, 32, 48, 64];
+    const OPERACOES_BENCH    = ["add", "sub", "mul", "div", "fat"];
+    const TESTES_POR_OP_BENCH = 10;
+
+    const OPERACOES_INFO_BENCH = {
+        "add": { nome: "Adição (+)",       cor: "#2b7a78", corFaixa: "rgba(43,122,120,0.18)"  },
+        "sub": { nome: "Subtração (-)",     cor: "#3aafa9", corFaixa: "rgba(58,175,169,0.18)"  },
+        "mul": { nome: "Multiplicação (*)", cor: "#e07a5f", corFaixa: "rgba(224,122,95,0.18)"  },
+        "div": { nome: "Divisão (/)",       cor: "#f4a261", corFaixa: "rgba(244,162,97,0.18)"  },
+        "fat": { nome: "Fatorial (!)",      cor: "#e76f51", corFaixa: "rgba(231,111,81,0.18)"  }
+    };
+
+    let chartInstances = {};
+
+    function gerarBinAleatorio(nBits) {
+        let s = '';
+        for (let i = 0; i < nBits; i++) s += Math.random() < 0.5 ? '0' : '1';
+        return s;
+    }
+
+    function uintParaBin(num, nBits) {
+        return Math.floor(num).toString(2).padStart(nBits, '0');
+    }
+
+    function calcularStats(arr) {
+        if (!arr.length) return { media: 0, desvio: 0 };
+        const media = arr.reduce((a, b) => a + b, 0) / arr.length;
+        const desvio = Math.sqrt(arr.reduce((a, b) => a + Math.pow(b - media, 2), 0) / arr.length);
+        return { media, desvio };
+    }
+
+    async function rodarTestes() {
+        const btnBench    = document.getElementById('btn-benchmark');
+        const progressDiv = document.getElementById('bench-progress');
+        const benchSection = document.getElementById('benchmark-section');
+
+        btnBench.disabled = true;
+        benchSection.style.display = 'block';
+        progressDiv.style.display  = 'block';
+
+        // Estrutura: { op: { bits: [tempos_us...] } }
+        const dados = {};
+        for (const op of OPERACOES_BENCH) {
+            dados[op] = {};
+            for (const n of LISTA_N_BITS_BENCH) dados[op][n] = [];
+        }
+
+        const total = LISTA_N_BITS_BENCH.length * OPERACOES_BENCH.length * TESTES_POR_OP_BENCH;
+        let feitos = 0;
+
+        for (const n of LISTA_N_BITS_BENCH) {
+            for (const op of OPERACOES_BENCH) {
+                for (let t = 0; t < TESTES_POR_OP_BENCH; t++) {
+                    progressDiv.textContent =
+                        `Testando ${n} bits — ${op} (${t + 1}/${TESTES_POR_OP_BENCH}) | ${feitos}/${total} concluídos`;
+
+                    let binA = gerarBinAleatorio(n);
+                    let binB = gerarBinAleatorio(n);
+
+                    if (op === "div" && binB === "0".repeat(n)) {
+                        if (Math.random() > 0.2) binB = uintParaBin(1 + Math.floor(Math.random() * 127), n);
+                    }
+                    if (op === "fat") {
+                        binA = uintParaBin(Math.floor(Math.random() * 13), n); // 0..12
+                        binB = "0".repeat(n);
+                    }
+
+                    try {
+                        const url = `${ESP32_IP}/calc?a=${binA}&b=${binB}&op=${op}&bits=${n}`;
+                        const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            if (data.tempo_us !== undefined) dados[op][n].push(data.tempo_us);
+                        }
+                    } catch (e) { /* timeout ou falha de rede — ignora */ }
+
+                    feitos++;
+                }
+            }
+        }
+
+        progressDiv.textContent = `✅ ${feitos} testes concluídos! Renderizando gráficos...`;
+        renderizarGraficos(dados);
+        progressDiv.textContent = `✅ Benchmark finalizado! ${feitos} testes realizados.`;
+        btnBench.disabled = false;
+    }
+
+    function renderizarGraficos(dados) {
+        for (const key in chartInstances) { chartInstances[key].destroy(); }
+        chartInstances = {};
+
+        for (const op of OPERACOES_BENCH) {
+            const info = OPERACOES_INFO_BENCH[op];
+            const ctx  = document.getElementById(`chart-${op}`).getContext('2d');
+
+            const labels = [], medias = [], superiores = [], inferiores = [];
+
+            for (const n of LISTA_N_BITS_BENCH) {
+                const tempos = dados[op][n];
+                if (!tempos.length) continue;
+                const { media, desvio } = calcularStats(tempos);
+                labels.push(n);
+                medias.push(parseFloat(media.toFixed(3)));
+                superiores.push(parseFloat((media + desvio).toFixed(3)));
+                inferiores.push(parseFloat(Math.max(0, media - desvio).toFixed(3)));
+            }
+
+            chartInstances[op] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Faixa Superior',
+                            data: superiores,
+                            borderColor: 'transparent',
+                            backgroundColor: info.corFaixa,
+                            pointRadius: 0,
+                            fill: '+1',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Faixa Inferior',
+                            data: inferiores,
+                            borderColor: 'transparent',
+                            backgroundColor: 'transparent',
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Tempo Médio ± Desvio Padrão',
+                            data: medias,
+                            borderColor: info.cor,
+                            backgroundColor: info.cor,
+                            borderWidth: 2.5,
+                            pointBackgroundColor: info.cor,
+                            pointRadius: 5,
+                            fill: false,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Análise de Desempenho ULA — ${info.nome}`,
+                            font: { size: 14, weight: 'bold' },
+                            padding: { bottom: 10 }
+                        },
+                        legend: {
+                            labels: {
+                                filter: (item) => item.text === 'Tempo Médio ± Desvio Padrão'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    if (ctx.datasetIndex !== 2) return null;
+                                    const n = parseInt(ctx.label);
+                                    const { media, desvio } = calcularStats(dados[op][n] || []);
+                                    return [
+                                        `Média: ${media.toFixed(2)} µs`,
+                                        `Desvio: ±${desvio.toFixed(2)} µs`,
+                                        `Amostras: ${(dados[op][n] || []).length}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Tamanho da Palavra (N_BITS)',
+                                font: { weight: 'bold' }
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Tempo de Execução (µs)',
+                                font: { weight: 'bold' }
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
     }
 </script>
 

@@ -4,26 +4,26 @@
 #include <cstdint>
 
 // Converte string binária para inteiro com extensão de sinal dinâmica baseada em nBits
-int converterParaInteiro(std::string binStr, int nBits) {
+long converterParaLong(std::string binStr, long nBits) {
     long valor = strtol(binStr.c_str(), NULL, 2); 
     long mascaraValida = (1 << nBits) - 1; 
     valor = valor & mascaraValida; 
 
     if (valor & (1 << (nBits - 1))) {
         long mascaraExtensaoSinal = ~mascaraValida;
-        return (int)(valor | mascaraExtensaoSinal); 
+        return (long)(valor | mascaraExtensaoSinal); 
     }
-    return (int)valor;
+    return (long)valor;
 }
 
 // Retorna a máscara baseada no número dinâmico de bits
-int obterMascaraBits(int value, int nBits) { 
+long obterMascaraBits(long value, long nBits) { 
     return value & ((1 << nBits) - 1); 
 }
 
 // Retorna o valor interpretado com sinal no escopo de N_BITS
-int converterParaSinalNBits(int value, int nBits) {
-    int mascarado = obterMascaraBits(value, nBits);
+long converterParaSinalNBits(long value, long nBits) {
+    long mascarado = obterMascaraBits(value, nBits);
     if (mascarado & (1 << (nBits - 1))) {
         return mascarado - (1 << nBits);
     }
@@ -31,24 +31,24 @@ int converterParaSinalNBits(int value, int nBits) {
 }
 
 // Função de processamento iterativo do Fatorial
-int fatorial(int n) {
+long fatorial(long n) {
     if (n < 0) return 0; // Fatorial não definido para números negativos
     if (n == 0 || n == 1) return 1;
-    int result = 1;
-    for (int i = 2; i <= n; i++) {
+    long result = 1;
+    for (long i = 2; i <= n; i++) {
         result *= i;
     }
     return result;
 }
 
 // Limites dinâmicos baseados no teto de complemento de dois para N bits
-bool OverFlowPositivo(int value, int nBits) { return value > (1 << (nBits - 1)) - 1; }
-bool OverFlowNegativo(int value, int nBits) { return value < -(1 << (nBits - 1)); }
-bool HasOverFlow(int value, int nBits) { return OverFlowPositivo(value, nBits) || OverFlowNegativo(value, nBits); }
+bool OverFlowPositivo(long value, long nBits) { return value > (1 << (nBits - 1)) - 1; }
+bool OverFlowNegativo(long value, long nBits) { return value < -(1 << (nBits - 1)); }
+bool HasOverFlow(long value, long nBits) { return OverFlowPositivo(value, nBits) || OverFlowNegativo(value, nBits); }
 
 // Detecção de overflow na adição e subtração baseada em inversão de sinal
-bool verificarHasOverFlowSoma(int valA, int valB, int resultado, int nBits) {
-    int resNBits = converterParaSinalNBits(resultado, nBits);
+bool verificarHasOverFlowSoma(long valA, long valB, long resultado, long nBits) {
+    long resNBits = converterParaSinalNBits(resultado, nBits);
     return ((valA > 0 && valB > 0 && resNBits <= 0) || (valA < 0 && valB < 0 && resNBits >= 0));
 }
 
@@ -60,15 +60,15 @@ int main(int argc, char* argv[]) {
     }
 
     // 1. Captura de argumentos passados pelo orquestrador Python
-    int nBits = std::atoi(argv[1]);
+    long nBits = std::atoi(argv[1]);
     std::string binA = argv[2];
     std::string binB = argv[3];
     std::string op = argv[4];
 
     // 2. Processamento de conversão com extensão de sinal genérica
-    int valA = converterParaInteiro(binA, nBits);
-    int valB = converterParaInteiro(binB, nBits);
-    int resultado = 0;
+    long valA = converterParaLong(binA, nBits);
+    long valB = converterParaLong(binB, nBits);
+    long resultado = 0;
     bool overflow = false;
 
     // 3. Estrutura de Controle Alinhada com as 5 Operações do Laboratório
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
     else if (op == "sub") {
         resultado = valA - valB;
         // Evita estouro de inversão unária (-valB) avaliando os sinais de hardware
-        int resNBits = converterParaSinalNBits(resultado, nBits);
+        long resNBits = converterParaSinalNBits(resultado, nBits);
         if ((valA >= 0 && valB < 0 && resNBits < 0) || (valA < 0 && valB > 0 && resNBits > 0)) {
             overflow = true;
         }
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
     }
 
     // 4. Aplicação do Mascaramento do Barramento Final
-    int resultadoMascarado = obterMascaraBits(resultado, nBits);
+    long resultadoMascarado = obterMascaraBits(resultado, nBits);
 
     // 5. Impressão Padronizada (CSV/String) capturada via pipeline de processo pelo Python
     // Formato: valA,valB,resultadoBruto,resultadoMascarado,overflow
