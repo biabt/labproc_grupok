@@ -3,19 +3,17 @@
 
 // --- Definições de Pinos ---
 #define PIN_LDR          34  
-#define PIN_BUTTON_SOS   25  
-#define PIN_LED_EXTERNO  26  
+#define PIN_BUTTON_TRAVESSIA   25  
 #define PIN_LED_BUILDIN  LED_BUILTIN   
-#define IS_DESAFIO false
 
 // --- Configurações de Rede Wi-Fi ---
-const char* ssid     = "ServoLED_ESP32_GrupoK";
+const char* ssid     = "MonitorInteligente_ESP32_GrupoK";
 const char* password = "";
 
 WebServer server(80);
 
 // --- Variáveis Globais de Controle ---
-volatile bool sosPressionado = false;
+volatile bool travesssiaPressionado = false;
 volatile unsigned long tempoUltimaInterrupcao = 0;
 const unsigned long TEMPO_DEBOUNCE = 50; 
 
@@ -35,18 +33,17 @@ EstadoSistema estadoAtual = NORMAL;
 unsigned long tempoInicioSOS = 0;
 const unsigned long DURACAO_SOS = 3000; 
 
-void IRAM_ATTR tratadorInterrupcaoSOS();
+void IRAM_ATTR tratadorInterrupcaoTravessia();
 void handleDados();
 
 void setup() {
   Serial.begin(115200);
 
   pinMode(PIN_LDR, INPUT);
-  pinMode(PIN_BUTTON_SOS, INPUT_PULLUP); 
-  pinMode(PIN_LED_EXTERNO, OUTPUT);
+  pinMode(PIN_BUTTON_TRAVESSIA, INPUT_PULLUP); 
   pinMode(PIN_LED_BUILDIN, OUTPUT);
 
-  attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_SOS), tratadorInterrupcaoSOS, FALLING);
+  attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_TRAVESSIA), tratadorInterrupcaoTravessia, FALLING);
 
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) { delay(500); }
@@ -74,26 +71,26 @@ void loop() {
   gerenciarSinalizacao();
 }
 
-void IRAM_ATTR tratadorInterrupcaoSOS() {
+void IRAM_ATTR tratadorInterrupcaoTravessia() {
   unsigned long tempoInterrupcaoAtual = millis();
   if (tempoInterrupcaoAtual - tempoUltimaInterrupcao > TEMPO_DEBOUNCE) {
-    sosPressionado = true;
+    travesssiaPressionado = true;
     tempoUltimaInterrupcao = tempoInterrupcaoAtual;
   }
 }
 
 void atualizarEstadoSistema() {
   unsigned long tempoAtual = millis();
-  if (sosPressionado) {
+  if (travesssiaPressionado) {
     estadoAtual = EMERGENCIA_SOS;
     tempoInicioSOS = tempoAtual;
-    sosPressionado = false;
-    neopixelWrite(NEOPIXEL_PIN, 255, 0, 0);
+    travesssiaPressionado = false;
+    neopixelWrite(PIN_LED_BUILDIN, 255, 0, 0);
   }
   if (estadoAtual == EMERGENCIA_SOS) {
     if (tempoAtual - tempoInicioSOS >= DURACAO_SOS) {
         estadoAtual = NORMAL;
-        neopixelWrite(NEOPIXEL_PIN, 0, 0, 0);
+        neopixelWrite(PIN_LED_BUILDIN, 0, 0, 0);
     }
   } else {
     estadoAtual = (valorADC < LIMIAR_ESCURIDAO) ? BAIXA_LUMINOSIDADE : NORMAL;
@@ -104,20 +101,21 @@ void gerenciarSinalizacao() {
   unsigned long tempoAtual = millis();
   switch (estadoAtual) {
     case EMERGENCIA_SOS:
-      neopixelWrite(NEOPIXEL_PIN, 255, 0, 0);
+      neopixelWrite(PIN_LED_BUILDIN, 255, 0, 0);
       break;
     case BAIXA_LUMINOSIDADE:
-      if (tempoAtual - tempoAnteriorPisca >= INTERVALO_PISCA) {
-        tempoAnteriorPisca = tempoAtual;
-        statusLedBuiltIn = !statusLedBuiltIn;
-        neopixelWrite(NEOPIXEL_PIN, 255, 255, 0);
-      }
+        if (tempoAtual - tempoAnteriorPisca >= INTERVALO_PISCA) {
+            tempoAnteriorPisca = tempoAtual;
+            statusLedBuiltIn = !statusLedBuiltIn;
+            if (statusLedBuiltIn) {
+                neopixelWrite(PIN_LED_BUILDIN, 255, 255, 0); // Amarelo
+            } else {
+                neopixelWrite(PIN_LED_BUILDIN, 0, 0, 0);     // Desligado
+            }
+        }
       break;
     case NORMAL:
-      if(IS_DESAFIO)
-        neopixelWrite(NEOPIXEL_PIN, 0, 255, 0);
-      else
-        neopixelWrite(NEOPIXEL_PIN, 0, 0, 0);
+      neopixelWrite(PIN_LED_BUILDIN, 0, 0, 0);
       statusLedBuiltIn = false;
       break;
   }
