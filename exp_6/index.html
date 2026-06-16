@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Monitoramento IoT</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            text-align: center;
+            margin-top: 50px;
+        }
+        .container {
+            display: inline-block;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
+            min-width: 300px;
+        }
+        h1 { color: #333; margin-bottom: 25px; font-size: 22px; }
+        .card {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: #fafafa;
+            border: 1px solid #eee;
+        }
+        .label { font-size: 14px; color: #666; text-transform: uppercase; font-weight: bold; }
+        .dado { font-size: 28px; font-weight: bold; color: #007bff; margin-top: 5px; }
+        
+        /* Cores dinâmicas para o Estado */
+        .status-normal { color: #28a745; }
+        .status-alerta { color: #ffc107; }
+        .status-perigo { color: #dc3545; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Monitoramento Inteligente</h1>
+        
+        <div class="card">
+            <div class="label">Leitura Sensor LDR (ADC)</div>
+            <div id="valorLdr" class="dado">---</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Estado do Sistema</div>
+            <div id="estadoSistema" class="dado">Conectando...</div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO: Insira aqui o IP que o ESP32 imprimiu no Monitor Serial
+        const ESP32_IP = "111.111.1.111"; 
+        const urlAPI = `http://${ESP32_IP}/dados`;
+
+        async function buscarDados() {
+            try {
+                const resposta = await fetch(urlAPI);
+                if (!resposta.ok) throw new Error("Erro na requisição");
+                
+                const dados = await reply.json();
+
+                // Atualiza o valor do LDR
+                document.getElementById("valorLdr").innerText = dados.ldr;
+
+                // Atualiza o Estado com tratamento de cor correspondente
+                const elementoEstado = document.getElementById("estadoSistema");
+                elementoEstado.innerText = dados.estado;
+                
+                // Reseta classes de cores
+                elementoEstado.className = "dado"; 
+                if (dados.estado === "NORMAL") {
+                    elementoEstado.classList.add("status-normal");
+                } else if (dados.estado === "BAIXA LUMINOSIDADE") {
+                    elementoEstado.classList.add("status-alerta");
+                } else if (dados.estado === "EMERGENCIA") {
+                    elementoEstado.classList.add("status-perigo");
+                }
+
+            } catch (erro) {
+                console.error("Erro ao buscar dados do ESP32:", erro);
+                document.getElementById("estadoSistema").innerText = "Desconectado";
+                document.getElementById("estadoSistema").className = "dado status-perigo";
+            }
+        }
+
+        // Executa a busca imediatamente e define o intervalo para rodar a cada 1000ms (1s)
+        buscarDados();
+        setInterval(buscarDados, 1000);
+    </script>
+</body>
+</html>
