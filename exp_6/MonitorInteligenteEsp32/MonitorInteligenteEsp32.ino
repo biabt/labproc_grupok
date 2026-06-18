@@ -2,12 +2,12 @@
 #include <WebServer.h>
 
 // --- Definições de Pinos ---
-#define PIN_LDR          34  
-#define PIN_BUTTON_TRAVESSIA   25  
+#define PIN_LDR          3  
+#define PIN_BUTTON_TRAVESSIA   6 
 #define PIN_LED_BUILDIN  LED_BUILTIN   
 
 // --- Configurações de Rede Wi-Fi ---
-const char* ssid     = "MonitorInteligente_ESP32_GrupoK";
+const char* ssid     = "ESP32_GrupoK";
 const char* password = "";
 
 WebServer server(80);
@@ -24,7 +24,7 @@ unsigned long tempoAnteriorPisca = 0;
 const unsigned long INTERVALO_PISCA = 2000; 
 
 int valorADC = 0;
-const int LIMIAR_ESCURIDAO = 1500; 
+const int LIMIAR_ESCURIDAO = 2000; 
 bool statusLedBuiltIn = false;
 
 enum EstadoSistema { NORMAL, BAIXA_LUMINOSIDADE, EMERGENCIA_SOS };
@@ -45,12 +45,10 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_TRAVESSIA), tratadorInterrupcaoTravessia, FALLING);
 
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); }
-  
-  Serial.println("\nConectado!");
-  Serial.print("IP do ESP32: ");
-  Serial.println(WiFi.localIP());
+  WiFi.softAP(ssid, password);
+  Serial.println("Wi-Fi Iniciado com Sucesso!");
+  Serial.print("IP do Servidor: ");
+  Serial.println(WiFi.softAPIP());
 
   // Define a rota que o HTML externo vai consultar
   server.on("/dados", handleDados);
@@ -93,7 +91,7 @@ void atualizarEstadoSistema() {
         neopixelWrite(PIN_LED_BUILDIN, 0, 0, 0);
     }
   } else {
-    estadoAtual = (valorADC < LIMIAR_ESCURIDAO) ? BAIXA_LUMINOSIDADE : NORMAL;
+    estadoAtual = (valorADC < LIMIAR_ESCURIDAO) ? NORMAL : BAIXA_LUMINOSIDADE;
   }
 }
 

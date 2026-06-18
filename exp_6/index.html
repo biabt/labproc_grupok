@@ -54,7 +54,7 @@
 
     <script>
         // CONFIGURAÇÃO: Insira aqui o IP que o ESP32 imprimiu no Monitor Serial
-        const ESP32_IP = "111.111.1.111"; 
+        const ESP32_IP = "192.168.4.1"; 
         const urlAPI = `http://${ESP32_IP}/dados`;
 
         async function buscarDados() {
@@ -62,7 +62,7 @@
                 const resposta = await fetch(urlAPI);
                 if (!resposta.ok) throw new Error("Erro na requisição");
                 
-                const dados = await reply.json();
+                const dados = await resposta.json();
 
                 // Atualiza o valor do LDR
                 document.getElementById("valorLdr").innerText = dados.ldr;

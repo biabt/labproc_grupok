@@ -2,8 +2,8 @@
 #include <WebServer.h>
 
 // --- Definições de Pinos ---
-#define PIN_LDR          34  
-#define PIN_BUTTON_TRAVESSIA   25  
+#define PIN_LDR          3 
+#define PIN_BUTTON_TRAVESSIA   6 
 #define NEOPIXEL_PIN  LED_BUILTIN   
 
 
@@ -26,7 +26,7 @@ unsigned long tempoAnteriorSemaforo = 0;
 const unsigned long INTERVALO_PISCA = 1000; // 1 segundo para o pisca do modo noturno
 
 int valorADC = 0;
-const int LIMIAR_ESCURIDAO = 1500; 
+const int LIMIAR_ESCURIDAO = 2000; 
 bool statusLedBuiltIn = false;
 
 // --- Nova Máquina de Estados Unificada ---
@@ -54,12 +54,10 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_TRAVESSIA), tratadorInterrupcaoTravessia, FALLING);
 
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); }
-  
-  Serial.println("\nConectado!");
-  Serial.print("IP do ESP32: ");
-  Serial.println(WiFi.localIP());
+  WiFi.softAP(ssid, password);
+  Serial.println("Wi-Fi Iniciado com Sucesso!");
+  Serial.print("IP do Servidor: ");
+  Serial.println(WiFi.softAPIP());
 
   server.on("/dados", handleDados);
   server.begin();
@@ -95,10 +93,10 @@ void atualizarEstadoSistema() {
     if (estadoAtual != VERMELHO) {
         estadoAtual = VERMELHO; // Força o semáforo para vermelho imediatamente
         tempoAnteriorSemaforo = tempoAtual; // Reinicia o timer do semáforo
-        travesssiaPressionado = false;
     }
+   travesssiaPressionado = false;
   }
-  else if (valorADC < LIMIAR_ESCURIDAO) {    
+  else if (valorADC > LIMIAR_ESCURIDAO) {    
       estadoAtual = NOTURNO;
   } else {
     // Se o sistema estava no modo noturno e a luz voltou, ele reinicia com segurança no VERDE
