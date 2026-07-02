@@ -78,6 +78,7 @@ typedef struct {
     opcode_t pending_op;    /* operacao decodificada e pendente */
     int      entering_b;    /* 0 = digitando A, 1 = digitando B */
     int      error_state;   /* flag de erro / exceção           */
+    int      just_calculated; /* flag para reset após calc/fatorial */
 } calc_state_t;
 
 static calc_state_t st;
@@ -197,8 +198,9 @@ static void push_digit(int digit) {
     }
 
     /* Após calc_equals() ou fatorial, reset operand_a quando digitar novo número */
-    if ((st.pending_op == OP_NONE || st.pending_op == OP_FAT) && !st.entering_b && *target != 0) {
+    if (st.just_calculated && !st.entering_b) {
         *target = 0;
+        st.just_calculated = 0;  /* limpar flag após reset */
     }
 
     /* Evita ultrapassar o limite de um inteiro de 32 bits (2,147,483,647) */
@@ -219,6 +221,7 @@ static void select_op(opcode_t op) {
         st.error_state = 0;
     }
 
+    st.just_calculated = 0;  /* limpar flag quando seleciona operação */
     st.pending_op = op;
     st.entering_b = (op != OP_FAT);  /* fatorial é unário */
 
@@ -274,6 +277,7 @@ static void calc_equals(void) {
     st.pending_op = OP_NONE;
     st.entering_b = 0;
     st.operand_b = 0;
+    st.just_calculated = 1;  /* sinalizar que deve resetar no próximo dígito */
 }
 
 static void handle_keypad(char key) {
