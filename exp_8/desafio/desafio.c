@@ -3,13 +3,13 @@
  * Alvo: Raspberry Pi 3 (Cortex-A53, ARM64)
  *
  * Utiliza:
- *   - Matrix Keypad 4x4 para entrada (GPIO via wiringPi)
+ *   - Matrix Keypad 4x4 para entrada (I2C via Freenove Keypad class)
  *   - Display LCD1602 via I2C (PCF8574 expander)
  *   - ULA em Assembly ARM64 (alu.s)
  * 
  * Fluxo:
- *   1. Inicialização: wiringPi GPIO + LCD I2C + Keypad
- *   2. Loop principal: Polling do teclado
+ *   1. Inicialização: wiringPi + LCD I2C (0x27) + Keypad I2C (0x48)
+ *   2. Loop principal: Polling do teclado via Keypad class
  *   3. Decodificação de tecla → operação na calculadora
  *   4. Atualização do LCD com resultado
  * ============================================================= */
@@ -23,6 +23,9 @@
 #include <wiringPiI2C.h>
 #include <pcf8574.h>
 #include <lcd.h>
+
+/* Freenove Keypad library (C++ classes) */
+#include "Keypad.hpp"
 
 /* ---------- Protótipos das rotinas escritas em alu.s ---------- */
 extern int64_t alu_add(int64_t a, int64_t b, uint32_t *err);
@@ -45,7 +48,7 @@ extern int64_t alu_div(int64_t a, int64_t b, uint32_t *err);
 #define D6      BASE+6
 #define D7      BASE+7
 
-/* ---------- Configuração da Matrix Keypad 4x4 ---------- */
+/* ---------- Configuração da Matrix Keypad 4x4 via I2C ---------- */
 #define ROWS    4
 #define COLS    4
 
@@ -56,8 +59,11 @@ const char keys[ROWS][COLS] = {
     {'*','0','#','D'}   // D = /, # = =, * = !
 };
 
-const int row_pins[ROWS] = {16, 20, 21, 26};  // GPIO BCM para linhas
-const int col_pins[COLS] = {19, 13, 6, 5};    // GPIO BCM para colunas
+const byte rowPins[ROWS] = {16, 20, 21, 26};  // Pinos de linha (mapeados pela classe Keypad)
+const byte colPins[COLS] = {19, 13, 6, 5};    // Pinos de coluna (mapeados pela classe Keypad)
+
+/* Instância global do Keypad (Freenove) */
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 /* ---------- Estado da máquina de estados da calculadora -------- */
 typedef enum { OP_NONE, OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_FAT } opcode_t;
@@ -97,8 +103,6 @@ void lcd_init(void) {
     int pcf8574_address = 0;
 
     printf("Inicializando LCD...\n");
-
-    wiringPiSetup();
 
     if (detectI2C(PCF8574_ADDR_1)) {
         pcf8574_address = PCF8574_ADDR_1;
@@ -161,58 +165,16 @@ void lcd_display_state(void) {
     lcdPrintf(lcdhd, "%s", line2);
 }
 
-/* ========== FUNÇÕES DE KEYPAD ========== */
+/* ========== FUNÇÕES DE KEYPAD (I2C via Freenove Keypad class) ========== */
 
 void keypad_init(void) {
-    int i;
-
-    printf("Inicializando Matrix Keypad...\n");
-
-    /* Configurar GPIO para linhas (saida) e colunas (entrada com pull-up) */
-    for (i = 0; i < ROWS; i++) {
-        pinMode(row_pins[i], OUTPUT);
-        digitalWrite(row_pins[i], HIGH);  /* inativo (pull-up) */
-    }
-
-    for (i = 0; i < COLS; i++) {
-        pinMode(col_pins[i], INPUT);
-        pullUpDnControl(col_pins[i], PUD_UP);  /* pull-up interno */
-    }
-
+    printf("Inicializando Matrix Keypad (I2C)...\n");
+    keypad.setDebounceTime(50);  /* 50ms debounce */
     printf("Keypad inicializado com sucesso\n");
 }
 
 char keypad_getKey(void) {
-    int row, col;
-
-    for (row = 0; row < ROWS; row++) {
-        /* Ativa apenas a linha atual (LOW = ativo) */
-        for (int r = 0; r < ROWS; r++) {
-            digitalWrite(row_pins[r], (r == row) ? LOW : HIGH);
-        }
-
-        delay(10);  /* tempo de estabilizacao */
-
-        /* Verifica qual coluna foi pressionada */
-        for (col = 0; col < COLS; col++) {
-            if (digitalRead(col_pins[col]) == LOW) {
-                delay(50);  /* debounce */
-                if (digitalRead(col_pins[col]) == LOW) {
-                    /* Espera tecla ser solta */
-                    while (digitalRead(col_pins[col]) == LOW) {
-                        delay(10);
-                    }
-                    delay(50);  /* debounce na soltura */
-                    return keys[row][col];
-                }
-            }
-        }
-
-        /* Desativa linhas apos verificacao */
-        digitalWrite(row_pins[row], HIGH);
-    }
-
-    return 0;  /* nenhuma tecla pressionada */
+    return keypad.getKey();  /* Retorna 0 se nenhuma tecla, senão retorna o caractere */
 }
 
 /* ========== FUNÇÕES DA CALCULADORA (adaptadas de main.c) ========== */
@@ -336,16 +298,16 @@ int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
 
-    printf("Calculadora ARM - Matrix Keypad + LCD1602\n");
+    printf("Calculadora ARM - Matrix Keypad + LCD1602 (I2C)\n");
     printf("Inicializando hardware...\n\n");
 
     /* Inicializar wiringPi (usar BCM) */
     wiringPiSetupGpio();
 
-    /* Inicializar LCD */
+    /* Inicializar LCD (I2C 0x27) */
     lcd_init();
 
-    /* Inicializar Keypad */
+    /* Inicializar Keypad (I2C via Freenove class) */
     keypad_init();
 
     /* Resetar calculadora */

@@ -32,11 +32,12 @@ test: alu.o test_alu.c
 run: $(TARGET)
 	./$(TARGET)
 
-# Desafio target: Matrix Keypad + LCD1602 Calculator
+# Desafio target: Matrix Keypad (I2C 0x48) + LCD1602 (I2C 0x27) Calculator
+# Integra a classe Keypad do Freenove kit para I2C Keypad
 desafio: $(DESAFIO_TARGET)
 
-$(DESAFIO_TARGET): alu.o desafio/desafio.c $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp
-	$(CXX) $(CFLAGS) alu.o desafio/desafio.c $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp \
+$(DESAFIO_TARGET): desafio/desafio.c alu.s $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp
+	$(CXX) -Wall -O2 desafio/desafio.c alu.s $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp \
 		-o $(DESAFIO_TARGET) -lwiringPi -lwiringPiDev
 	@echo "Build successful: ./$(DESAFIO_TARGET)"
 
