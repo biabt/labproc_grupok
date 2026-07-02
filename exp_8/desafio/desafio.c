@@ -196,6 +196,11 @@ static void push_digit(int digit) {
         st.error_state = 0;
     }
 
+    /* Após calc_equals(), reset operand_a quando digitar novo número */
+    if (st.pending_op == OP_NONE && !st.entering_b && *target != 0) {
+        *target = 0;
+    }
+
     /* Evita ultrapassar o limite de um inteiro de 32 bits (2,147,483,647) */
     if (*target > (INT32_MAX - digit) / 10) {
         st.error_state = 1;
