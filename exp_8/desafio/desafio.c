@@ -132,8 +132,8 @@ void lcd_init(void) {
 }
 
 void lcd_display_state(void) {
-    char line1[17];
-    char line2[17];
+    char line1[33];
+    char line2[33];
     const char *opname = "";
 
     if (st.error_state) {
