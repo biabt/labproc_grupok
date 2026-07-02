@@ -37,7 +37,7 @@ run: $(TARGET)
 desafio: $(DESAFIO_TARGET)
 
 $(DESAFIO_TARGET): desafio/desafio.c alu.s $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp
-	$(CXX) -Wall -O2 desafio/desafio.c alu.s $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp \
+	$(CXX) -Wall -O2 -I$(FREENOVE_KIT) desafio/desafio.c alu.s $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp \
 		-o $(DESAFIO_TARGET) -lwiringPi -lwiringPiDev
 	@echo "Build successful: ./$(DESAFIO_TARGET)"
 
