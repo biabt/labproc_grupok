@@ -6,7 +6,7 @@
 
 CC      = gcc
 CXX     = g++          # para compilar Freenove kit files (.cpp)
-AS      = gcc          # usamos o gcc também para montar o .s (mais simples)
+AS      = as           # GNU assembler para ARM64
 CFLAGS  = -Wall -O2 $(shell pkg-config --cflags sdl2 SDL2_ttf)
 LDFLAGS = $(shell pkg-config --libs sdl2 SDL2_ttf)
 
@@ -17,7 +17,7 @@ FREENOVE_KIT = $(HOME)/Freenove_Projects_Kit_for_Raspberry_Pi/Code/C_Code/21_Mat
 all: $(TARGET)
 
 alu.o: alu.s
-	$(AS) -c alu.s -o alu.o
+	$(AS) alu.s -o alu.o
 
 main.o: main.c
 	$(CC) $(CFLAGS) -c main.c -o main.o
