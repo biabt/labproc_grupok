@@ -5,11 +5,14 @@
 # gera código ARM64 nativamente).
 
 CC      = gcc
+CXX     = g++          # para compilar Freenove kit files (.cpp)
 AS      = gcc          # usamos o gcc também para montar o .s (mais simples)
 CFLAGS  = -Wall -O2 $(shell pkg-config --cflags sdl2 SDL2_ttf)
 LDFLAGS = $(shell pkg-config --libs sdl2 SDL2_ttf)
 
 TARGET  = calculadora_arm
+DESAFIO_TARGET = desafio/desafio_arm
+FREENOVE_KIT = ~/Freenove_Kit/Code/C_Code/21_MatrixKeypad
 
 all: $(TARGET)
 
@@ -29,7 +32,18 @@ test: alu.o test_alu.c
 run: $(TARGET)
 	./$(TARGET)
 
-clean:
-	rm -f *.o $(TARGET) test_alu
+# Desafio target: Matrix Keypad + LCD1602 Calculator
+desafio: $(DESAFIO_TARGET)
 
-.PHONY: all run clean test
+$(DESAFIO_TARGET): alu.o desafio/desafio.c $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp
+	$(CXX) $(CFLAGS) alu.o desafio/desafio.c $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp \
+		-o $(DESAFIO_TARGET) -lwiringPi -lwiringPiDev
+	@echo "Build successful: ./$(DESAFIO_TARGET)"
+
+desafio-run: $(DESAFIO_TARGET)
+	sudo ./$(DESAFIO_TARGET)
+
+clean:
+	rm -f *.o $(TARGET) test_alu $(DESAFIO_TARGET)
+
+.PHONY: all run clean test desafio desafio-run
