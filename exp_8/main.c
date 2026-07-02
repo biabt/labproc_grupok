@@ -17,6 +17,7 @@
 #include <string.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#include <limits.h>
 
 /* ---------- Protótipos das rotinas escritas em alu.s ---------- */
 extern int64_t alu_add(int64_t a, int64_t b, uint32_t *err);
@@ -54,16 +55,28 @@ static void calc_reset(void) {
  * Decodificador de OpCode (equivalente ao bloco "Decodificador de
  * OpCode" do fluxograma): recebe a tecla e decide o que fazer.
  * ----------------------------------------------------------------- */
-static void push_digit(int digit /* 0-9, mas aqui restrito a 0/1 p/ bin,
-                                     ou 0-9 se quiser modo decimal */) {
+static void push_digit(int digit)
+{
     int64_t *target = st.entering_b ? &st.operand_b : &st.operand_a;
 
-    if (st.error_state) { calc_reset(); }  /* qualquer tecla apos erro reinicia */
+    /* Qualquer tecla após erro reinicia a calculadora */
+    if (st.error_state) {
+        calc_reset();
+    }
+
+    /* Evita ultrapassar o limite de um inteiro de 32 bits */
+    if (*target > (INT32_MAX - digit) / 10) {
+        st.error_state = 1;
+        strcpy(st.display, "ERRO: OVERFLOW");
+        return;
+    }
 
     *target = (*target * 10) + digit;
-    if (*target > 15 && st.pending_op != OP_FAT) *target = 1000000; /* trava 4-bit: RF01 */
-                                        
-    snprintf(st.display, sizeof(st.display), "%lld", (long long)*target);
+
+    snprintf(st.display,
+             sizeof(st.display),
+             "%lld",
+             (long long)*target);
 }
 
 static void select_op(opcode_t op) {
