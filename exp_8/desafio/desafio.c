@@ -28,11 +28,14 @@
 #include "Keypad.hpp"
 
 /* ---------- Protótipos das rotinas escritas em alu.s ---------- */
-extern int64_t alu_add(int64_t a, int64_t b, uint32_t *err);
-extern int64_t alu_sub(int64_t a, int64_t b, uint32_t *err);
-extern int64_t alu_mul(int64_t a, int64_t b, uint32_t *err);
-extern int64_t alu_fat(int64_t n, uint32_t *err);
-extern int64_t alu_div(int64_t a, int64_t b, uint32_t *err);
+/* extern "C" evita name mangling em C++ para functions assembly puro */
+extern "C" {
+    extern int64_t alu_add(int64_t a, int64_t b, uint32_t *err);
+    extern int64_t alu_sub(int64_t a, int64_t b, uint32_t *err);
+    extern int64_t alu_mul(int64_t a, int64_t b, uint32_t *err);
+    extern int64_t alu_fat(int64_t n, uint32_t *err);
+    extern int64_t alu_div(int64_t a, int64_t b, uint32_t *err);
+}
 
 /* ---------- Configuração de LCD1602 via I2C ---------- */
 #define PCF8574_ADDR_1  0x27        // PCF8574T
