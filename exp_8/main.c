@@ -61,8 +61,8 @@ static void push_digit(int digit /* 0-9, mas aqui restrito a 0/1 p/ bin,
     if (st.error_state) { calc_reset(); }  /* qualquer tecla apos erro reinicia */
 
     *target = (*target * 10) + digit;
-    if (*target > 15 && st.pending_op != OP_FAT) *target = 15; /* trava 4-bit: RF01 */
-
+    if (*target > 15 && st.pending_op != OP_FAT) *target = 1000000; /* trava 4-bit: RF01 */
+                                        
     snprintf(st.display, sizeof(st.display), "%lld", (long long)*target);
 }
 
