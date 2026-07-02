@@ -196,8 +196,8 @@ static void push_digit(int digit) {
         st.error_state = 0;
     }
 
-    /* Após calc_equals(), reset operand_a quando digitar novo número */
-    if (st.pending_op == OP_NONE && !st.entering_b && *target != 0) {
+    /* Após calc_equals() ou fatorial, reset operand_a quando digitar novo número */
+    if ((st.pending_op == OP_NONE || st.pending_op == OP_FAT) && !st.entering_b && *target != 0) {
         *target = 0;
     }
 
@@ -233,6 +233,7 @@ static void select_op(opcode_t op) {
             st.operand_a = (int32_t)r;
             snprintf(st.display, sizeof(st.display), "%d", (int)st.operand_a);
         }
+        st.operand_b = 0;  /* reset operand_b após fatorial */
     }
 }
 
