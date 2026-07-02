@@ -59,8 +59,8 @@ const char keys[ROWS][COLS] = {
     {'*','0','#','D'}   // D = /, # = =, * = !
 };
 
-const byte rowPins[ROWS] = {16, 20, 21, 26};  // Pinos de linha (mapeados pela classe Keypad)
-const byte colPins[COLS] = {19, 13, 6, 5};    // Pinos de coluna (mapeados pela classe Keypad)
+byte rowPins[ROWS] = {16, 20, 21, 26};  // Pinos de linha (mapeados pela classe Keypad)
+byte colPins[COLS] = {19, 13, 6, 5};    // Pinos de coluna (mapeados pela classe Keypad)
 
 /* Instância global do Keypad (Freenove) */
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
