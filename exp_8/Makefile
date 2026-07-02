@@ -12,7 +12,7 @@ LDFLAGS = $(shell pkg-config --libs sdl2 SDL2_ttf)
 
 TARGET  = calculadora_arm
 DESAFIO_TARGET = desafio/desafio_arm
-FREENOVE_KIT = ~/Freenove_Kit/Code/C_Code/21_MatrixKeypad
+FREENOVE_KIT = ~/Freenove_Projects_Kit_for_Raspberry_Pi/Code/C_Code/21_MatrixKeypad
 
 all: $(TARGET)
 
