@@ -2,15 +2,11 @@
  * main.c - Metrônomo Eletrônico para Raspberry Pi 3
  * Alvo: Raspberry Pi 3 (Cortex-A53, ARM)
  *
- * Biblioteca: pigpio (PWM por hardware, melhor precisão)
- * Instalação: sudo apt-get install pigpio
- * Daemon: sudo pigpiod (executar antes de iniciar o programa)
- *
  * Periféricos utilizados (Kit Freenove FNK0054):
- *   - LED Red (GPIO 17): Pisca quando servo atinge 90°
+ *   - LED Red (GPIO 17): Pisca quando servo atinge 90° (Blink.c)
  *   - Botão (GPIO 26): Controle de iniciar/parar
- *   - Buzzer (GPIO 12): Toca quando servo atinge 90°
- *   - Servo Motor (GPIO 18): Movimentação angular via PWM
+ *   - Buzzer (GPIO 12): Toca quando servo atinge 90° (Doorbell.c)
+ *   - Servo Motor (GPIO 18): Movimentação angular suave (Sweep.c)
  *
  * Funcionalidades:
  *   1. Metrônomo com 2 batidas por 3 segundos (40 BPM)
@@ -21,13 +17,10 @@
  *   6. Controle Start/Stop por botão responsivo
  *
  * Comportamento:
- *   Inicio: Servo posicionado em 90° (1500µs)
+ *   Inicio: Servo posicionado em 0°
  *   Batida 1: Servo move suavemente de ângulo atual→180° em 1500ms
  *   Batida 2: Servo move suavemente de ângulo atual→0° em 1500ms
  *   LED+Buzzer: Ativam quando servo passa por ~90° em qualquer direção
- *
- * Compilação: gcc -Wall -Wextra -O2 -c main.c -o main.o
- *             gcc main.o -o metronomo -lpigpio -lm
  * ============================================================= */
 
 #include <stdio.h>
@@ -37,7 +30,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <pigpio.h>
+#include <wiringPi.h>
 #include <math.h>
 
 /* ==================== DEFINIÇÕES DE HARDWARE ==================== */
@@ -86,9 +79,12 @@ static metronome_t metronome;
 static button_t button_start;
 static volatile int should_exit = 0;
 
-/* ==================== PROTÓTIPOS DAS FUNÇÕES DO PIGPIO ==================== */
+/* ==================== PROTÓTIPOS DAS FUNÇÕES DO FREENOVE ==================== */
 
-/* Não é necessário com pigpio - funções já estão em pigpio.h */
+/* Do Sweep.c */
+extern void servoInit(int pin);
+extern void servoWrite(int pin, int angle);
+extern void servoWriteMS(int pin, int ms);
 
 /* ==================== FUNÇÕES AUXILIARES DE TEMPO ==================== */
 
@@ -120,36 +116,34 @@ static unsigned long time_diff_ms(unsigned long start, unsigned long end) {
 /* ==================== FUNÇÕES DE INICIALIZAÇÃO ==================== */
 
 /**
- * @brief Inicializa os pinos GPIO com pigpio
+ * @brief Inicializa os pinos GPIO
  */
 static void gpio_init(void) {
-    printf("Inicializando pigpio...\n");
+    printf("Inicializando GPIO com wiringPi...\n");
 
-    if (gpioInitialise() < 0) {
-        printf("Erro: Falha ao inicializar pigpio\n");
+    if (wiringPiSetupGpio() == -1) {
+        printf("Erro: Falha ao inicializar wiringPi\n");
         printf("Certifique-se de estar executando com privilégios de root\n");
-        printf("e que o daemon pigpiod está rodando: sudo pigpiod\n");
         exit(1);
     }
 
     /* Configurar LED como saída digital (simples ON/OFF) */
-    gpioSetMode(PIN_LED_RED, PI_OUTPUT);
-    gpioWrite(PIN_LED_RED, 0);  /* LED começa desligado */
+    pinMode(PIN_LED_RED, OUTPUT);
+    digitalWrite(PIN_LED_RED, LOW);  /* LED começa desligado */
 
     /* Configurar botão como entrada com pull-up */
-    gpioSetMode(PIN_BUTTON_START, PI_INPUT);
-    gpioSetPullUpDown(PIN_BUTTON_START, PI_PUD_UP);
+    pinMode(PIN_BUTTON_START, INPUT);
+    pullUpDnControl(PIN_BUTTON_START, PUD_UP);
 
     /* Configurar buzzer como saída */
-    gpioSetMode(PIN_BUZZER, PI_OUTPUT);
-    gpioWrite(PIN_BUZZER, 0);
+    pinMode(PIN_BUZZER, OUTPUT);
+    digitalWrite(PIN_BUZZER, LOW);
 
-    /* Inicializar servo com PWM (50Hz para servo padrão) */
-    /* pigpio controla servo via gpioServo() que já configura automaticamente */
-    gpioServo(PIN_SERVO, 1500);  /* Servo começa em 90° (1500µs) */
-    usleep(100000);  /* Aguardar 100ms */
+    /* Inicializar servo (do Freenove Sweep.c) */
+    servoInit(PIN_SERVO);
+    servoWrite(PIN_SERVO, 0);  /* Servo começa em 0° */
 
-    printf("pigpio inicializado com sucesso\n");
+    printf("GPIO inicializado com sucesso\n");
 }
 
 /**
@@ -157,7 +151,7 @@ static void gpio_init(void) {
  */
 static void button_init(void) {
     button_start.pin = PIN_BUTTON_START;
-    button_start.last_state = 1;  /* HIGH = 1 com pigpio */
+    button_start.last_state = HIGH;
     button_start.last_press_time = 0;
 
     printf("Botão inicializado\n");
@@ -179,43 +173,37 @@ static void metronome_init(void) {
  * @brief Acende o LED
  */
 static void led_on(void) {
-    gpioWrite(PIN_LED_RED, 1);
+    digitalWrite(PIN_LED_RED, HIGH);
 }
 
 /**
  * @brief Apaga o LED
  */
 static void led_off(void) {
-    gpioWrite(PIN_LED_RED, 0);
+    digitalWrite(PIN_LED_RED, LOW);
 }
 
 /**
  * @brief Aciona o buzzer
  */
 static void buzzer_on(void) {
-    gpioWrite(PIN_BUZZER, 1);
+    digitalWrite(PIN_BUZZER, HIGH);
 }
 
 /**
  * @brief Desliga o buzzer
  */
 static void buzzer_off(void) {
-    gpioWrite(PIN_BUZZER, 0);
+    digitalWrite(PIN_BUZZER, LOW);
 }
 
 /**
  * @brief Move o servo para um ângulo específico (0-180°)
- * Converte ângulo para largura de pulso em microsegundos
- * 0° = 1000µs, 90° = 1500µs, 180° = 2000µs
  */
 static void servo_set_angle(int angle) {
     if (angle < 0) angle = 0;
     if (angle > 180) angle = 180;
-    
-    /* Converter ângulo para pulsewidth em microsegundos */
-    unsigned int pulsewidth = 1000 + (angle * 1000 / 180);
-    
-    gpioServo(PIN_SERVO, pulsewidth);
+    servoWrite(PIN_SERVO, angle);
     metronome.servo_angle = angle;
 }
 
@@ -228,7 +216,7 @@ static void metronome_start(void) {
     if (metronome.state == STATE_STOPPED) {
         metronome.state = STATE_RUNNING;
         servo_set_angle(0);
-        usleep(100000);  /* Aguardar 100ms para servo estabilizar */
+        delay(100);  /* Aguardar servo estabilizar na posição inicial */
         led_off();
         printf("Metrônomo iniciado\n");
     }
@@ -266,11 +254,11 @@ static void metronome_toggle(void) {
  * @param pressed Função a executar se botão pressionado
  */
 static void button_process(button_t *btn, void (*pressed)(void)) {
-    int current_state = gpioRead(btn->pin);
+    int current_state = digitalRead(btn->pin);
     unsigned long now = get_time_ms();
 
-    /* Detectar transição de HIGH(1) para LOW(0) (botão pressionado) */
-    if (current_state == 0 && btn->last_state == 1) {
+    /* Detectar transição de HIGH para LOW (botão pressionado) */
+    if (current_state == LOW && btn->last_state == HIGH) {
         /* Verificar debounce */
         if (time_diff_ms(btn->last_press_time, now) > DEBOUNCE_MS) {
             printf("Botão no pino %d pressionado\n", btn->pin);
@@ -364,7 +352,7 @@ static int execute_beat(int beat_num) {
         }
 
         previous_angle = current_angle;
-        usleep(10000);  /* 10ms em microsegundos */
+        delay(10);  /* AJUSTE: Aumentado de 1ms para 10ms para permitir que o servo acompanhe suavemente */
     }
 
     /* Garantir que chegou no ângulo final */
@@ -372,7 +360,7 @@ static int execute_beat(int beat_num) {
     
     /* AJUSTE: Aguardar servo estabilizar antes da próxima batida */
     /* Isso evita movimentos erráticos ao inverter a direção */
-    usleep(100000);  /* 100ms em microsegundos */
+    delay(100);
     
     /* Garantir que LED e buzzer estão desligados ao final */
     buzzer_off();
@@ -398,7 +386,7 @@ static void metronome_loop(void) {
     } else {
         /* Verificar botão mesmo quando parado */
         button_process_all();
-        usleep(10000);  /* 10ms em microsegundos */
+        delay(10);
     }
 }
 
@@ -426,10 +414,6 @@ static void cleanup(void) {
     led_off();
     buzzer_off();
     servo_set_angle(0);
-    usleep(100000);  /* Aguardar servo estabilizar */
-
-    /* Finalizar pigpio */
-    gpioTerminate();
 
     printf("Metrônomo encerrado com sucesso\n");
 }
