@@ -3,22 +3,22 @@
  * Alvo: Raspberry Pi 3 (Cortex-A53, ARM)
  *
  * Periféricos utilizados (Kit Freenove FNK0054):
- *   - LED Red (GPIO 17): PWM com LED alternando ON/OFF (Blink.c)
+ *   - LED Red (GPIO 17): Pisca quando servo atinge 90° (Blink.c)
  *   - Botão (GPIO 26): Controle de iniciar/parar
- *   - Buzzer (GPIO 12): Som a cada batida (Doorbell.c)
- *   - Servo Motor (GPIO 18): Movimentação angular (Sweep.c)
+ *   - Buzzer (GPIO 12): Toca quando servo atinge 90° (Doorbell.c)
+ *   - Servo Motor (GPIO 18): Movimentação angular suave (Sweep.c)
  *
  * Funcionalidades:
- *   1. Metrônomo com 2 batidas por segundo (60 BPM)
- *   2. Cada batida: buzzer ON 0.1s + servo 0→180 ou 180→0
- *   3. LED alterna ON/OFF entre batidas
- *   4. Servo com rotação gradual em passos de 1°
- *   5. Controle Start/Stop por botão
- *   6. Timing preciso com compensation de drift
+ *   1. Metrônomo com 2 batidas por 3 segundos (40 BPM)
+ *   2. Cada batida: 1500ms de rotação suave do servo (0→180 ou 180→0)
+ *   3. LED e buzzer são ativados quando servo atinge 90°
+ *   4. Buzzer toca por 100ms a partir do ponto de 90°
+ *   5. Servo com rotação gradual suave (1° a cada ~8.3ms)
+ *   6. Controle Start/Stop por botão responsivo
  *
  * Comportamento:
- *   Batida 1: LED ON, buzzer 0.1s, servo 0→180 gradualmente
- *   Batida 2: LED OFF, buzzer 0.1s, servo 180→0 gradualmente
+ *   Batida 1: Servo 0→180° em 1500ms, LED+Buzzer ativam em 90°
+ *   Batida 2: Servo 180→0° em 1500ms, LED+Buzzer ativam em 90°
  * ============================================================= */
 
 #include <stdio.h>
@@ -33,7 +33,7 @@
 /* ==================== DEFINIÇÕES DE HARDWARE ==================== */
 
 /* Pinos GPIO (usando numeração BCM do Freenove) */
-#define PIN_LED_RED         17      /* GPIO17 - LED Red com PWM (Blink.c) */
+#define PIN_LED_RED         17      /* GPIO17 - LED Red (Blink.c) */
 #define PIN_BUTTON_START    26      /* GPIO26 - Start/Stop (com pull-up) */
 #define PIN_BUZZER          12      /* GPIO12 - Buzzer (Doorbell.c) */
 #define PIN_SERVO           18      /* GPIO18 - Servo Motor (Sweep.c) */
@@ -41,13 +41,10 @@
 /* Servo angular constants */
 #define SERVO_ANGLE_MIN     0       /* Ângulo mínimo: 0 graus */
 #define SERVO_ANGLE_MAX     180     /* Ângulo máximo: 180 graus */
-#define SERVO_DELAY_MS      1       /* Delay entre passos: 1ms */
-#define SERVO_STEP          1       /* Passo: 1 grau */
 
 /* Timing constants */
-#define BEAT_INTERVAL_MS    1500     /* Intervalo entre batidas: 1500 (2 batidas/seg = 80 BPM) */
+#define BEAT_INTERVAL_MS    1500    /* Intervalo entre batidas: 1500ms */
 #define BUZZER_DURATION_MS  100     /* Duração do buzzer: 100ms */
-#define SERVO_MOVE_TIME_MS  180     /* Tempo da rotação do servo: ~180ms */
 
 /* Debounce */
 #define DEBOUNCE_MS         200      /* Tempo de debounce em ms */
@@ -63,13 +60,7 @@ typedef enum {
 /* Estrutura do estado do metrônomo */
 typedef struct {
     metronome_state_t state;
-    int beat_count;                 /* Contador de batidas (par/ímpar) */
-    unsigned long beat_start_time;  /* Tempo de início da batida */
-    int led_state;                  /* Estado do LED (0=OFF, 1=ON) */
     int servo_angle;                /* Ângulo atual do servo */
-    unsigned long buzzer_start_time;/* Tempo de início do buzzer */
-    int buzzer_active;              /* Flag de buzzer ativo */
-    int servo_moving;               /* Flag de servo em movimento */
 } metronome_t;
 
 /* Estrutura para debounce de botão */
@@ -168,15 +159,9 @@ static void button_init(void) {
  */
 static void metronome_init(void) {
     metronome.state = STATE_STOPPED;
-    metronome.beat_count = 0;
-    metronome.beat_start_time = 0;
-    metronome.led_state = 0;        /* LED começa OFF */
     metronome.servo_angle = 0;      /* Servo em 0° */
-    metronome.buzzer_start_time = 0;
-    metronome.buzzer_active = 0;
-    metronome.servo_moving = 0;
 
-    printf("Metrônomo inicializado: 60 BPM (2 batidas/segundo)\n");
+    printf("Metrônomo inicializado: 40 BPM (2 batidas a cada 3 segundos)\n");
 }
 
 /* ==================== FUNÇÕES DE CONTROLE DE PERIFÉRICOS ==================== */
@@ -227,9 +212,6 @@ static void servo_set_angle(int angle) {
 static void metronome_start(void) {
     if (metronome.state == STATE_STOPPED) {
         metronome.state = STATE_RUNNING;
-        metronome.beat_count = 0;
-        metronome.beat_start_time = get_time_ms();
-        metronome.led_state = 0;
         servo_set_angle(0);
         led_off();
         printf("Metrônomo iniciado\n");
@@ -296,81 +278,69 @@ static void button_process_all(void) {
 /* ==================== LOOP PRINCIPAL ==================== */
 
 /**
- * @brief Rotação gradual do servo
- * @param start_angle Ângulo inicial
- * @param end_angle Ângulo final
- * @param step Passo de incremento
- */
-static void servo_rotate_gradual(int start_angle, int end_angle, int step) {
-    int angle;
-    int direction = (end_angle > start_angle) ? 1 : -1;
-
-    if (direction > 0) {
-        for (angle = start_angle; angle <= end_angle; angle += step) {
-            /* Processar botão durante movimento do servo */
-            button_process_all();
-            
-            servo_set_angle(angle);
-            delay(SERVO_DELAY_MS);
-        }
-    } else {
-        for (angle = start_angle; angle >= end_angle; angle -= step) {
-            /* Processar botão durante movimento do servo */
-            button_process_all();
-            
-            servo_set_angle(angle);
-            delay(SERVO_DELAY_MS);
-        }
-    }
-}
-
-/**
  * @brief Executa uma batida completa do metrônomo
  * @param beat_num Número da batida (0 ou 1)
  * @return 1 se completado, 0 se interrompido
  */
 static int execute_beat(int beat_num) {
-    unsigned long beat_time = get_time_ms();
-    unsigned long buzzer_end_time = beat_time + BUZZER_DURATION_MS;
+    unsigned long beat_start = get_time_ms();
+    unsigned long beat_end = beat_start + BEAT_INTERVAL_MS;
+    
+    int start_angle = (beat_num == 0) ? 0 : 180;
+    int end_angle = (beat_num == 0) ? 180 : 0;
+    int direction = (end_angle > start_angle) ? 1 : -1;
+    
+    int current_angle = start_angle;
+    int previous_angle = start_angle - 1;
+    int buzzer_triggered = 0;
+    unsigned long buzzer_end_time = 0;
 
-    if (beat_num == 0) {
-        /* Primeira batida: LED ON */
-        printf("Beat 1 (LED ON)\n");
-        metronome.led_state = 1;
-        led_on();
-    } else {
-        /* Segunda batida: LED OFF */
-        printf("Beat 2 (LED OFF)\n");
-        metronome.led_state = 0;
-        led_off();
-    }
+    printf("Beat %d: Servo %d→%d\n", beat_num + 1, start_angle, end_angle);
 
-    /* Buzzer ON por 100ms com processamento de botão */
-    buzzer_on();
-    while (get_time_ms() < buzzer_end_time) {
+    while (get_time_ms() < beat_end) {
         button_process_all();
-        /* Se botão foi pressionado e parou, interromper */
         if (metronome.state == STATE_STOPPED) {
             buzzer_off();
+            led_off();
             return 0;
         }
+
+        /* Calcular ângulo baseado no tempo decorrido */
+        unsigned long elapsed = get_time_ms() - beat_start;
+        current_angle = start_angle + (direction * (int)((elapsed * 180) / BEAT_INTERVAL_MS));
+        
+        /* Limitar ângulo aos limites */
+        if (direction > 0) {
+            if (current_angle > end_angle) current_angle = end_angle;
+        } else {
+            if (current_angle < end_angle) current_angle = end_angle;
+        }
+
+        servo_set_angle(current_angle);
+
+        /* Detectar quando atinge 90° (transição suave) */
+        if (!buzzer_triggered && current_angle == 90 && previous_angle != 90) {
+            printf("  → Ângulo 90° atingido! LED ON, Buzzer ON\n");
+            led_on();
+            buzzer_on();
+            buzzer_triggered = 1;
+            buzzer_end_time = get_time_ms() + BUZZER_DURATION_MS;
+        }
+
+        /* Desligar buzzer após 100ms */
+        if (buzzer_triggered && get_time_ms() >= buzzer_end_time) {
+            buzzer_off();
+            led_off();
+            buzzer_triggered = 0;
+        }
+
+        previous_angle = current_angle;
         delay(1);
     }
+
+    /* Garantir que LED e buzzer estão desligados ao final */
     buzzer_off();
-
-    /* Servo motion: rotação gradual (botão processado dentro) */
-    if (beat_num == 0) {
-        /* Rotação 0→180 */
-        servo_rotate_gradual(0, 180, SERVO_STEP);
-    } else {
-        /* Rotação 180→0 */
-        servo_rotate_gradual(180, 0, SERVO_STEP);
-    }
-
-    /* Se foi parado durante servo, não continuar */
-    if (metronome.state == STATE_STOPPED) {
-        return 0;
-    }
+    led_off();
 
     return 1;
 }
@@ -379,45 +349,15 @@ static int execute_beat(int beat_num) {
  * @brief Loop principal do metrônomo
  */
 static void metronome_loop(void) {
-    unsigned long cycle_start = 0;
-    unsigned long drift_time = 0;
-    unsigned long sleep_time = 0;
-
     if (metronome.state == STATE_RUNNING) {
-        /* Batida 0 */
-        cycle_start = get_time_ms();
+        /* Batida 0: Servo 0→180, ativa quando atinge 90° */
         if (execute_beat(0) == 0) {
             return;  /* Interrompida pelo botão */
         }
-        drift_time = get_time_ms() - cycle_start;
-        sleep_time = (drift_time < BEAT_INTERVAL_MS) ? (BEAT_INTERVAL_MS - drift_time) : 0;
-        if (sleep_time > 0) {
-            unsigned long sleep_end = get_time_ms() + sleep_time;
-            while (get_time_ms() < sleep_end) {
-                button_process_all();
-                if (metronome.state == STATE_STOPPED) {
-                    return;  /* Interrompida durante sleep */
-                }
-                delay(5);
-            }
-        }
 
-        /* Batida 1 */
-        cycle_start = get_time_ms();
+        /* Batida 1: Servo 180→0, ativa quando atinge 90° */
         if (execute_beat(1) == 0) {
             return;  /* Interrompida pelo botão */
-        }
-        drift_time = get_time_ms() - cycle_start;
-        sleep_time = (drift_time < BEAT_INTERVAL_MS) ? (BEAT_INTERVAL_MS - drift_time) : 0;
-        if (sleep_time > 0) {
-            unsigned long sleep_end = get_time_ms() + sleep_time;
-            while (get_time_ms() < sleep_end) {
-                button_process_all();
-                if (metronome.state == STATE_STOPPED) {
-                    return;  /* Interrompida durante sleep */
-                }
-                delay(5);
-            }
         }
     } else {
         /* Verificar botão mesmo quando parado */
@@ -479,12 +419,12 @@ int main(int argc, char **argv) {
     printf("========================================\n");
     printf("Botões:\n");
     printf("  - Botão (GPIO 26): Inicia/Para o metrônomo\n");
-    printf("\nConfigurações:\n");
+    printf("\nComportamento:\n");
     printf("  - BPM: 40 (2 batidas por 3 segundos)\n");
     printf("  - Cada batida: 1500ms\n");
-    printf("  - Buzzer: 100ms por batida\n");
-    printf("  - Servo: Rotação gradual de 0-180°\n");
-    printf("  - LED: Alterna ON/OFF a cada batida\n");
+    printf("  - Servo: Rotação suave 0→180 ou 180→0 durante 1500ms\n");
+    printf("  - LED e Buzzer: Ativam quando servo atinge 90°\n");
+    printf("  - Buzzer: Soa por 100ms a partir dos 90°\n");
     printf("\nPressione Ctrl+C para sair\n");
     printf("Pressione o botão para iniciar/parar\n\n");
 
