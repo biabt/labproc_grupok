@@ -284,9 +284,6 @@ static void button_process_all(void) {
  * @return 1 se completado, 0 se interrompido
  */
 static int execute_beat(int beat_num) {
-    unsigned long beat_start = get_time_ms();
-    unsigned long beat_end = beat_start + BEAT_INTERVAL_MS;
-    
     int start_angle = (beat_num == 0) ? 0 : 180;
     int end_angle = (beat_num == 0) ? 180 : 0;
     int direction = (end_angle > start_angle) ? 1 : -1;
@@ -297,6 +294,14 @@ static int execute_beat(int beat_num) {
     unsigned long buzzer_end_time = 0;
 
     printf("Beat %d: Servo %d→%d\n", beat_num + 1, start_angle, end_angle);
+    
+    /* Posicionar servo na posição inicial e estabilizar */
+    servo_set_angle(start_angle);
+    delay(50);  /* Dar tempo para servo se posicionar */
+    
+    /* Agora inicia o timing da batida */
+    unsigned long beat_start = get_time_ms();
+    unsigned long beat_end = beat_start + BEAT_INTERVAL_MS;
 
     while (get_time_ms() < beat_end) {
         button_process_all();

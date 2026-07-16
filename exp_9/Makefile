@@ -61,8 +61,8 @@ $(TARGET): $(OBJECTS) $(FREENOVE_OBJECTS)
 test_periph.o: test_peripherals.c
 	$(CC) $(CFLAGS) -c test_peripherals.c -o test_periph.o
 
-$(TEST_TARGET): $(TEST_OBJECTS)
-	$(CC) $(TEST_OBJECTS) -o $(TEST_TARGET) $(LDFLAGS)
+$(TEST_TARGET): $(TEST_OBJECTS) $(FREENOVE_OBJECTS)
+	$(CC) $(TEST_OBJECTS) $(FREENOVE_OBJECTS) -o $(TEST_TARGET) $(LDFLAGS)
 	@echo "================================"
 	@echo "Test build successful: ./$(TEST_TARGET)"
 	@echo "================================"
