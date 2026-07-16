@@ -11,6 +11,7 @@ CFLAGS  = -Wall -Wextra -O2 -pedantic
 LDFLAGS = -lwiringPi -lm
 
 TARGET  = metronomo
+DESAFIO_TARGET = desafio
 TEST_TARGET = test_periph
 
 # Paths do Freenove Kit
@@ -19,17 +20,22 @@ FREENOVE_KIT_LED = $(HOME)/Freenove_Projects_Kit_for_Raspberry_Pi/Code/C_Code/1_
 FREENOVE_KIT_BUZZER = $(HOME)/Freenove_Projects_Kit_for_Raspberry_Pi/Code/C_Code/6_1_Doorbell/Doorbell.c
 
 SOURCES = main.c
+DESAFIO_SOURCES = desafio.c
 TEST_SOURCES = test_peripherals.c
 FREENOVE_SOURCES = $(FREENOVE_KIT_SERVO) $(FREENOVE_KIT_LED) $(FREENOVE_KIT_BUZZER)
 
 OBJECTS = $(SOURCES:.c=.o)
+DESAFIO_OBJECTS = $(DESAFIO_SOURCES:.c=.o)
 TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
 FREENOVE_OBJECTS = Sweep.o Blink.o Doorbell.o
 
-all: $(TARGET)
+all: $(TARGET) $(DESAFIO_TARGET)
 
 main.o: main.c
 	$(CC) $(CFLAGS) -c main.c -o main.o
+
+desafio.o: desafio.c
+	$(CC) $(CFLAGS) -c desafio.c -o desafio.o
 
 Sweep.o: $(FREENOVE_KIT_SERVO)
 	@echo "Processando Sweep.c (removendo main)..."
@@ -58,6 +64,12 @@ $(TARGET): $(OBJECTS) $(FREENOVE_OBJECTS)
 	@echo "Build successful: ./$(TARGET)"
 	@echo "================================"
 
+$(DESAFIO_TARGET): $(DESAFIO_OBJECTS) $(FREENOVE_OBJECTS)
+	$(CC) $(DESAFIO_OBJECTS) $(FREENOVE_OBJECTS) -o $(DESAFIO_TARGET) $(LDFLAGS)
+	@echo "================================"
+	@echo "Desafio build successful: ./$(DESAFIO_TARGET)"
+	@echo "================================"
+
 test_periph.o: test_peripherals.c
 	$(CC) $(CFLAGS) -c test_peripherals.c -o test_periph.o
 
@@ -70,6 +82,10 @@ $(TEST_TARGET): $(TEST_OBJECTS) $(FREENOVE_OBJECTS)
 run: $(TARGET)
 	@echo "Iniciando metrônomo (requer privilégios de root)..."
 	sudo ./$(TARGET)
+
+run-desafio: $(DESAFIO_TARGET)
+	@echo "Iniciando desafio (requer privilégios de root)..."
+	sudo ./$(DESAFIO_TARGET)
 
 test: $(TEST_TARGET)
 	@echo "Iniciando testes de periféricos (requer privilégios de root)..."
@@ -84,12 +100,13 @@ debug-test: clean $(TEST_TARGET)
 	@echo "Debug test build complete with symbols"
 
 clean:
-	rm -f $(OBJECTS) $(TEST_OBJECTS) $(FREENOVE_OBJECTS) $(TARGET) $(TEST_TARGET)
+	rm -f $(OBJECTS) $(DESAFIO_OBJECTS) $(TEST_OBJECTS) $(FREENOVE_OBJECTS) $(TARGET) $(DESAFIO_TARGET) $(TEST_TARGET)
 
 help:
 	@echo "Targets disponíveis:"
-	@echo "  make          - Compila o projeto metrônomo"
+	@echo "  make          - Compila o projeto metrônomo e desafio"
 	@echo "  make run      - Compila e executa metrônomo (requer sudo)"
+	@echo "  make run-desafio - Compila e executa desafio com controle de velocidade (requer sudo)"
 	@echo "  make test     - Compila e executa testes de periféricos (requer sudo)"
 	@echo "  make debug    - Compila metrônomo com símbolos de debug"
 	@echo "  make debug-test - Compila testes com símbolos de debug"
