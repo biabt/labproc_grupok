@@ -10,15 +10,17 @@
  *
  * Funcionalidades:
  *   1. Metrônomo com 2 batidas por 3 segundos (40 BPM)
- *   2. Cada batida: 1500ms de rotação suave do servo (0→180 ou 180→0)
- *   3. LED e buzzer são ativados quando servo atinge 90°
+ *   2. Cada batida: 1500ms de rotação suave contínua
+ *   3. LED e buzzer são ativados quando servo atinge ~90°
  *   4. Buzzer toca por 100ms a partir do ponto de 90°
- *   5. Servo com rotação gradual suave (1° a cada ~8.3ms)
+ *   5. Servo mantém continuidade entre batidas (sem resets)
  *   6. Controle Start/Stop por botão responsivo
  *
  * Comportamento:
- *   Batida 1: Servo 0→180° em 1500ms, LED+Buzzer ativam em 90°
- *   Batida 2: Servo 180→0° em 1500ms, LED+Buzzer ativam em 90°
+ *   Inicio: Servo posicionado em 0°
+ *   Batida 1: Servo move suavemente de ângulo atual→180° em 1500ms
+ *   Batida 2: Servo move suavemente de ângulo atual→0° em 1500ms
+ *   LED+Buzzer: Ativam quando servo passa por ~90° em qualquer direção
  * ============================================================= */
 
 #include <stdio.h>
@@ -214,6 +216,7 @@ static void metronome_start(void) {
     if (metronome.state == STATE_STOPPED) {
         metronome.state = STATE_RUNNING;
         servo_set_angle(0);
+        delay(100);  /* Aguardar servo estabilizar na posição inicial */
         led_off();
         printf("Metrônomo iniciado\n");
     }
@@ -284,22 +287,22 @@ static void button_process_all(void) {
  * @return 1 se completado, 0 se interrompido
  */
 static int execute_beat(int beat_num) {
-    int start_angle = (beat_num == 0) ? 0 : 180;
+    /* Usar o ângulo ATUAL do servo como ponto de partida */
+    int start_angle = metronome.servo_angle;
     int end_angle = (beat_num == 0) ? 180 : 0;
     int direction = (end_angle > start_angle) ? 1 : -1;
     
+    /* Calcular a distância total a percorrer */
+    int total_distance = abs(end_angle - start_angle);
+    
     int current_angle = start_angle;
-    int previous_angle = start_angle - 1;
+    int previous_angle = start_angle;
     int buzzer_triggered = 0;
     unsigned long buzzer_end_time = 0;
 
-    printf("Beat %d: Servo %d→%d\n", beat_num + 1, start_angle, end_angle);
+    printf("Beat %d: Servo %d→%d (distância: %d°)\n", beat_num + 1, start_angle, end_angle, total_distance);
     
-    /* Posicionar servo na posição inicial e estabilizar */
-    servo_set_angle(start_angle);
-    delay(50);  /* Dar tempo para servo se posicionar */
-    
-    /* Agora inicia o timing da batida */
+    /* Inicia o timing da batida */
     unsigned long beat_start = get_time_ms();
     unsigned long beat_end = beat_start + BEAT_INTERVAL_MS;
 
@@ -313,10 +316,10 @@ static int execute_beat(int beat_num) {
 
         /* Calcular ângulo baseado no tempo decorrido */
         unsigned long elapsed = get_time_ms() - beat_start;
-        int angle_distance = (int)((elapsed * 180) / BEAT_INTERVAL_MS);
+        int angle_distance = (int)((elapsed * total_distance) / BEAT_INTERVAL_MS);
         
-        /* Limitar a distância aos limites */
-        if (angle_distance > 180) angle_distance = 180;
+        /* Limitar a distância ao total */
+        if (angle_distance > total_distance) angle_distance = total_distance;
         
         current_angle = start_angle + (direction * angle_distance);
         
@@ -331,9 +334,9 @@ static int execute_beat(int beat_num) {
             int prev_dist_to_90 = abs(previous_angle - 90);
             int curr_dist_to_90 = abs(current_angle - 90);
             
-            /* Se passou por 90° (distância diminuiu e passou), trigger */
-            if (prev_dist_to_90 > curr_dist_to_90 && curr_dist_to_90 <= 1) {
-                printf("  → Ângulo 90° atingido! LED ON, Buzzer ON\n");
+            /* Se passou por 90° (distância diminuiu e chegou perto), trigger */
+            if (prev_dist_to_90 > curr_dist_to_90 && curr_dist_to_90 <= 2) {
+                printf("  → Ângulo ~90° atingido! (atual=%d°) LED ON, Buzzer ON\n", current_angle);
                 led_on();
                 buzzer_on();
                 buzzer_triggered = 1;
@@ -352,6 +355,9 @@ static int execute_beat(int beat_num) {
         delay(1);
     }
 
+    /* Garantir que chegou no ângulo final */
+    servo_set_angle(end_angle);
+    
     /* Garantir que LED e buzzer estão desligados ao final */
     buzzer_off();
     led_off();
@@ -435,9 +441,10 @@ int main(int argc, char **argv) {
     printf("  - Botão (GPIO 26): Inicia/Para o metrônomo\n");
     printf("\nComportamento:\n");
     printf("  - BPM: 40 (2 batidas por 3 segundos)\n");
-    printf("  - Cada batida: 1500ms\n");
-    printf("  - Servo: Rotação suave 0→180 ou 180→0 durante 1500ms\n");
-    printf("  - LED e Buzzer: Ativam quando servo atinge 90°\n");
+    printf("  - Cada batida: 1500ms de movimento suave\n");
+    printf("  - Servo: Movimento contínuo alternando entre extremos\n");
+    printf("           Batida 1: atual→180°, Batida 2: atual→0°\n");
+    printf("  - LED e Buzzer: Ativam quando servo passa por ~90°\n");
     printf("  - Buzzer: Soa por 100ms a partir dos 90°\n");
     printf("\nPressione Ctrl+C para sair\n");
     printf("Pressione o botão para iniciar/parar\n\n");

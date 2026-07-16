@@ -21,7 +21,7 @@
 
 /* Kit Freenove FNK0054 */
 #define PIN_LED_RED         17      /* GPIO17 - LED Red (Blink.c) */
-#define PIN_BUTTON_START    25      /* GPIO25 - Start/Stop */
+#define PIN_BUTTON_START    26      /* GPIO26 - Start/Stop */
 #define PIN_BUZZER          12      /* GPIO12 - Buzzer (Doorbell.c) */
 #define PIN_SERVO           18      /* GPIO18 - Servo Motor (Sweep.c) */
 
