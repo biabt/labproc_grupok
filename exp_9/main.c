@@ -45,7 +45,7 @@
 #define SERVO_STEP          1       /* Passo: 1 grau */
 
 /* Timing constants */
-#define BEAT_INTERVAL_MS    500     /* Intervalo entre batidas: 500 (2 batidas/seg = 500 BPM) */
+#define BEAT_INTERVAL_MS    1500     /* Intervalo entre batidas: 1500 (2 batidas/seg = 80 BPM) */
 #define BUZZER_DURATION_MS  100     /* Duração do buzzer: 100ms */
 #define SERVO_MOVE_TIME_MS  180     /* Tempo da rotação do servo: ~180ms */
 
@@ -480,8 +480,8 @@ int main(int argc, char **argv) {
     printf("Botões:\n");
     printf("  - Botão (GPIO 26): Inicia/Para o metrônomo\n");
     printf("\nConfigurações:\n");
-    printf("  - BPM: 60 (2 batidas por segundo)\n");
-    printf("  - Cada batida: 500ms\n");
+    printf("  - BPM: 40 (2 batidas por 3 segundos)\n");
+    printf("  - Cada batida: 1500ms\n");
     printf("  - Buzzer: 100ms por batida\n");
     printf("  - Servo: Rotação gradual de 0-180°\n");
     printf("  - LED: Alterna ON/OFF a cada batida\n");
