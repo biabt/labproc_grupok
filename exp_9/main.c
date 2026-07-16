@@ -4,7 +4,7 @@
  *
  * Periféricos utilizados (Kit Freenove FNK0054):
  *   - LED Red (GPIO 17): PWM com LED alternando ON/OFF (Blink.c)
- *   - Botão (GPIO 25): Controle de iniciar/parar
+ *   - Botão (GPIO 26): Controle de iniciar/parar
  *   - Buzzer (GPIO 12): Som a cada batida (Doorbell.c)
  *   - Servo Motor (GPIO 18): Movimentação angular (Sweep.c)
  *
@@ -34,7 +34,7 @@
 
 /* Pinos GPIO (usando numeração BCM do Freenove) */
 #define PIN_LED_RED         17      /* GPIO17 - LED Red com PWM (Blink.c) */
-#define PIN_BUTTON_START    25      /* GPIO25 - Start/Stop (com pull-up) */
+#define PIN_BUTTON_START    26      /* GPIO26 - Start/Stop (com pull-up) */
 #define PIN_BUZZER          12      /* GPIO12 - Buzzer (Doorbell.c) */
 #define PIN_SERVO           18      /* GPIO18 - Servo Motor (Sweep.c) */
 
@@ -478,7 +478,7 @@ int main(int argc, char **argv) {
     printf("  Instruções de Uso\n");
     printf("========================================\n");
     printf("Botões:\n");
-    printf("  - Botão (GPIO 25): Inicia/Para o metrônomo\n");
+    printf("  - Botão (GPIO 26): Inicia/Para o metrônomo\n");
     printf("\nConfigurações:\n");
     printf("  - BPM: 60 (2 batidas por segundo)\n");
     printf("  - Cada batida: 120ms\n");
