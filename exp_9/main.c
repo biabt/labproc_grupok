@@ -29,6 +29,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <wiringPi.h>
+#include <math.h>
 
 /* ==================== DEFINIÇÕES DE HARDWARE ==================== */
 
@@ -307,24 +308,32 @@ static int execute_beat(int beat_num) {
 
         /* Calcular ângulo baseado no tempo decorrido */
         unsigned long elapsed = get_time_ms() - beat_start;
-        current_angle = start_angle + (direction * (int)((elapsed * 180) / BEAT_INTERVAL_MS));
+        int angle_distance = (int)((elapsed * 180) / BEAT_INTERVAL_MS);
         
-        /* Limitar ângulo aos limites */
-        if (direction > 0) {
-            if (current_angle > end_angle) current_angle = end_angle;
-        } else {
-            if (current_angle < end_angle) current_angle = end_angle;
-        }
+        /* Limitar a distância aos limites */
+        if (angle_distance > 180) angle_distance = 180;
+        
+        current_angle = start_angle + (direction * angle_distance);
+        
+        /* Limitar ângulo aos limites [0, 180] */
+        if (current_angle < 0) current_angle = 0;
+        if (current_angle > 180) current_angle = 180;
 
         servo_set_angle(current_angle);
 
-        /* Detectar quando atinge 90° (transição suave) */
-        if (!buzzer_triggered && current_angle == 90 && previous_angle != 90) {
-            printf("  → Ângulo 90° atingido! LED ON, Buzzer ON\n");
-            led_on();
-            buzzer_on();
-            buzzer_triggered = 1;
-            buzzer_end_time = get_time_ms() + BUZZER_DURATION_MS;
+        /* Detectar quando passa por 90° (intervalo de tolerância) */
+        if (!buzzer_triggered) {
+            int prev_dist_to_90 = abs(previous_angle - 90);
+            int curr_dist_to_90 = abs(current_angle - 90);
+            
+            /* Se passou por 90° (distância diminuiu e passou), trigger */
+            if (prev_dist_to_90 > curr_dist_to_90 && curr_dist_to_90 <= 1) {
+                printf("  → Ângulo 90° atingido! LED ON, Buzzer ON\n");
+                led_on();
+                buzzer_on();
+                buzzer_triggered = 1;
+                buzzer_end_time = get_time_ms() + BUZZER_DURATION_MS;
+            }
         }
 
         /* Desligar buzzer após 100ms */
