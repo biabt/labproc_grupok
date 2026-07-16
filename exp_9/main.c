@@ -352,11 +352,15 @@ static int execute_beat(int beat_num) {
         }
 
         previous_angle = current_angle;
-        delay(1);
+        delay(10);  /* AJUSTE: Aumentado de 1ms para 10ms para permitir que o servo acompanhe suavemente */
     }
 
     /* Garantir que chegou no ângulo final */
     servo_set_angle(end_angle);
+    
+    /* AJUSTE: Aguardar servo estabilizar antes da próxima batida */
+    /* Isso evita movimentos erráticos ao inverter a direção */
+    delay(100);
     
     /* Garantir que LED e buzzer estão desligados ao final */
     buzzer_off();
