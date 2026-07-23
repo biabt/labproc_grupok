@@ -27,7 +27,7 @@
 // Configurações de Segurança
 #define PASSWORD          "1234"
 #define MAX_PASS_LEN      10
-#define DIST_THRESHOLD    10.0 // cm (Acima disso, porta considerada aberta)
+#define DIST_THRESHOLD    25.0 // cm (Acima disso, porta considerada aberta)
 
 // Máquina de Estados
 typedef enum { STATE_LOCKED, STATE_UNLOCKED, STATE_ALARM } lock_state_t;
@@ -91,8 +91,8 @@ void process_key(char key) {
             current_state = STATE_UNLOCKED;
             update_lcd("ACESSO LIBERADO", "Seja Bem-vindo");
             printf("Acesso liberado. Status: UNLOCKED\n");
-            buzzer_feedback(200); 
-            delay(3000); 
+            buzzer_feedback(200);
+            delay(10000);
             current_state = STATE_LOCKED;
             printf("Retornando para estado travado.\n");
             // Limpa após sucesso
@@ -161,16 +161,19 @@ int main() {
         }
 
         // 2. Leitura do Teclado (Degrau 2: Keypad Integration)
-        char key = keypad.getKey();
-        if (key) {
-            process_key(key);
-        }
+        
+        else{
+            char key = keypad.getKey();
+            if (key) {
+                process_key(key);
+            }
 
-        if (current_state == STATE_LOCKED && input_ptr == 0) {
-            lcdPosition(lcd_h, 0, 0);
-            lcdPrintf(lcd_h, "PORTA TRANQUEDA ");
-            lcdPosition(lcd_h, 0, 1);
-            lcdPrintf(lcd_h, "Status: OK      ");
+            if (current_state == STATE_LOCKED && input_ptr == 0) {
+                lcdPosition(lcd_h, 0, 0);
+                lcdPrintf(lcd_h, "PORTA TRANCADA ");
+                lcdPosition(lcd_h, 0, 1);
+                lcdPrintf(lcd_h, "Status: OK      ");
+            }
         }
 
         delay(100); // Polling amigavel a CPU
