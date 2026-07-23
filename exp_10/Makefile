@@ -12,11 +12,13 @@ LDFLAGS  = -lwiringPi
 TARGET   = fechadura
 SOURCES  = main.cpp
 OBJECTS  = $(SOURCES:.cpp=.o)
+FREENOVE_KIT = $(HOME)/Freenove_Projects_Kit_for_Raspberry_Pi/Code/C_Code/21_MatrixKeypad
+
 
 all: $(TARGET)
 
 main.o: main.cpp
-	$(CXX) $(CXXFLAGS) -c main.cpp -o main.o
+	$(CXX) $(CXXFLAGS) -c main.cpp -o main.o $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
