@@ -10,7 +10,7 @@ CXXFLAGS = -Wall -Wextra -O2 -pedantic -std=c++17
 LDFLAGS  = -lwiringPi -lwiringPiDev
 
 TARGET   = fechadura
-FREENOVE_KIT = $(HOME)/Freenove_Projects_Kit_for_Raspberry_Pi/Code/C_Code/21_MatrixKeypad
+FREENOVE_KIT = /home/baeta/Freenove_Projects_Kit_for_Raspberry_Pi/Code/C_Code/21_MatrixKeypad
 
 
 all: $(TARGET)
