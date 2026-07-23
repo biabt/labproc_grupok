@@ -18,10 +18,10 @@ FREENOVE_KIT = $(HOME)/Freenove_Projects_Kit_for_Raspberry_Pi/Code/C_Code/21_Mat
 all: $(TARGET)
 
 main.o: main.cpp
-	$(CXX) $(CXXFLAGS) -c main.cpp -o main.o $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp
+	$(CXX) $(CXXFLAGS) -I$(FREENOVE_KIT) -c main.cpp -o main.o
 
 $(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
+	$(CXX) $(OBJECTS) $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp -o $(TARGET) $(LDFLAGS)
 	@echo "================================"
 	@echo "Build successful: ./$(TARGET)"
 	@echo "================================"
