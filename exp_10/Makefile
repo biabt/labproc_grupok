@@ -7,21 +7,16 @@
 
 CXX      = g++
 CXXFLAGS = -Wall -Wextra -O2 -pedantic -std=c++17
-LDFLAGS  = -lwiringPi
+LDFLAGS  = -lwiringPi -lwiringPiDev
 
 TARGET   = fechadura
-SOURCES  = main.cpp
-OBJECTS  = $(SOURCES:.cpp=.o)
 FREENOVE_KIT = $(HOME)/Freenove_Projects_Kit_for_Raspberry_Pi/Code/C_Code/21_MatrixKeypad
 
 
 all: $(TARGET)
 
-main.o: main.cpp
-	$(CXX) $(CXXFLAGS) -I$(FREENOVE_KIT) -c main.cpp -o main.o
-
-$(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp -o $(TARGET) $(LDFLAGS)
+$(TARGET): main.cpp $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp
+	$(CXX) -Wall -O2 -I$(FREENOVE_KIT) main.cpp $(FREENOVE_KIT)/Keypad.cpp $(FREENOVE_KIT)/Key.cpp -o $(TARGET) $(LDFLAGS)
 	@echo "================================"
 	@echo "Build successful: ./$(TARGET)"
 	@echo "================================"
@@ -35,7 +30,7 @@ debug: clean $(TARGET)
 	@echo "Debug build complete with symbols"
 
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -f $(TARGET)
 
 help:
 	@echo "Targets disponiveis:"
