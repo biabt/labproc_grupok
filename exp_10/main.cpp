@@ -21,8 +21,8 @@
 
 // Pinos Periféricos
 #define PIN_BUZZER        12
-#define PIN_TRIG          23
-#define PIN_ECHO          24
+#define PIN_TRIG          14
+#define PIN_ECHO          15
 
 // Configurações de Segurança
 #define PASSWORD          "1234"
@@ -81,20 +81,26 @@ void update_lcd(const char* line1, const char* line2) {
 
 /* --- Lógica Principal --- */
 void process_key(char key) {
+    printf("Tecla pressionada: %c\n", key);
+
     if (key == '#') { // Tecla para submeter (Enter)
         input_buffer[input_ptr] = '\0'; // Garante que a string está finalizada
+        printf("Senha submetida: %s\n", input_buffer);
         
         if (strcmp(input_buffer, PASSWORD) == 0) {
             current_state = STATE_UNLOCKED;
             update_lcd("ACESSO LIBERADO", "Seja Bem-vindo");
+            printf("Acesso liberado. Status: UNLOCKED\n");
             buzzer_feedback(200); 
             delay(3000); 
             current_state = STATE_LOCKED;
+            printf("Retornando para estado travado.\n");
             // Limpa após sucesso
             input_ptr = 0;
             memset(input_buffer, 0, MAX_PASS_LEN);
         } else {
             update_lcd("ACESSO NEGADO", "Senha Incorreta");
+            printf("Senha incorreta. Status: LOCKED\n");
             buzzer_feedback(1000); 
             delay(1000);
             // Limpa após erro para nova tentativa
@@ -107,6 +113,7 @@ void process_key(char key) {
         input_ptr = 0;
         memset(input_buffer, 0, MAX_PASS_LEN);
         update_lcd("INSIRA A SENHA:", "");
+        printf("Entrada de senha limpa.\n");
     }
     else if (input_ptr < MAX_PASS_LEN - 1) {
         // Armazena o caractere
@@ -115,6 +122,7 @@ void process_key(char key) {
         
         // EXIBIÇÃO: Enviamos o buffer real em vez da máscara de '*'
         update_lcd("INSIRA A SENHA:", input_buffer);
+        printf("Buffer atual da senha: %s\n", input_buffer);
         
         // Feedback sonoro curto para cada tecla
         digitalWrite(PIN_BUZZER, HIGH);
@@ -138,14 +146,17 @@ int main() {
     pinMode(PIN_ECHO, INPUT);
     keypad.setDebounceTime(50);
 
+    printf("Inicializacao completa. Sistema pronto para uso.\n");
     update_lcd("SISTEMA PRONTO", "Aguardando...");
 
     while(1) {
         // 1. Monitoramento do Sensor (Degrau 1: Core + Sensor)
         float dist = get_distance();
+        printf("Distancia medida: %.1f cm\n", dist);
         if (current_state == STATE_LOCKED && dist > DIST_THRESHOLD) {
             // Porta aberta sem autorização!
             update_lcd("ALERTA!", "PORTA ABERTA");
+            printf("Alerta: porta aberta sem autorizacao!\n");
             buzzer_feedback(100); // Alarme intermitente
         }
 
@@ -162,7 +173,7 @@ int main() {
             lcdPrintf(lcd_h, "Status: OK      ");
         }
 
-        delay(100); // Polling amigável à CPU
+        delay(100); // Polling amigavel a CPU
     }
 
     return 0;
